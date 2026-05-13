@@ -76,6 +76,7 @@ GitHub Pages 需要到仓库设置里启用 Pages，并将 Source 设置为 GitH
 ## 项目文档
 
 - 版本计划：[docs/plans/2026-05-13-public-mobile-playtest-roadmap.md](docs/plans/2026-05-13-public-mobile-playtest-roadmap.md)
+- 腾讯云 COS + CDN 部署方案：[docs/plans/2026-05-13-tencent-cos-cdn-deployment.md](docs/plans/2026-05-13-tencent-cos-cdn-deployment.md)
 - 主题关卡与生命值设计：[docs/superpowers/specs/2026-05-13-themed-levels-health-design.md](docs/superpowers/specs/2026-05-13-themed-levels-health-design.md)
 - 角色设计：[docs/character-design.md](docs/character-design.md)
 
