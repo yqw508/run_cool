@@ -67,6 +67,12 @@ export class RunnerScene extends Phaser.Scene {
     super('RunnerScene');
   }
 
+  preload(): void {
+    CHARACTER_PRESETS.forEach((preset) => {
+      this.load.image(preset.assetKey, preset.assetUrl);
+    });
+  }
+
   create(): void {
     document.getElementById('boot-loading')?.remove();
     this.drawWorld();
@@ -401,6 +407,12 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawCharacterParts(player: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    if (this.textures.exists(preset.assetKey)) {
+      player.add(this.add.ellipse(0, 8, 70, 18, 0x000000, 0.14));
+      player.add(this.add.image(0, 20, preset.assetKey).setOrigin(0.5, 1).setDisplaySize(92, 138));
+      return;
+    }
+
     player.add(this.add.ellipse(0, 8, 62, 16, 0x000000, 0.18));
     player.add(this.add.rectangle(-11, -12, 14, 34, preset.detailColor));
     player.add(this.add.rectangle(11, -12, 14, 34, preset.detailColor));

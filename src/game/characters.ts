@@ -5,6 +5,8 @@ export type CharacterPreset = {
   label: string;
   age: string;
   description: string;
+  assetKey: string;
+  assetUrl: string;
   skinColor: number;
   hairColor: number;
   outfitColor: number;
@@ -17,12 +19,16 @@ export type CharacterSelection = {
   presetId: CharacterId;
 };
 
+const characterAsset = (fileName: string): string => new URL(`../assets/characters/${fileName}`, import.meta.url).href;
+
 export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     id: 'baby-brother',
     label: '小弟弟',
     age: '半岁',
-    description: '纸尿裤宝宝',
+    description: '穿纸尿裤的萌宝宝',
+    assetKey: 'character-baby-brother',
+    assetUrl: characterAsset('baby-brother.png'),
     skinColor: 0xffc9a3,
     hairColor: 0x5c3a28,
     outfitColor: 0xe8f5ec,
@@ -33,8 +39,10 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     id: 'little-star',
     label: '小星星',
-    age: '中班',
-    description: '西瓜头背带裤',
+    age: '幼儿园中班',
+    description: '西瓜头和背带裤风格',
+    assetKey: 'character-little-star',
+    assetUrl: characterAsset('little-star.png'),
     skinColor: 0xffc39a,
     hairColor: 0x2d211b,
     outfitColor: 0x31a7ff,
@@ -45,8 +53,10 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     id: 'ice-princess',
     label: '冰雪小公主',
-    age: '一年级',
-    description: '蓝白雪花裙',
+    age: '小学一年级',
+    description: '冰雪裙装的萌版公主',
+    assetKey: 'character-ice-princess',
+    assetUrl: characterAsset('ice-princess.png'),
     skinColor: 0xffd4b2,
     hairColor: 0xf8f3d6,
     outfitColor: 0x8ed8ff,
@@ -57,8 +67,10 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     id: 'pudding',
     label: '小布丁',
-    age: '二年级',
-    description: '粉色小裙子',
+    age: '小学二年级',
+    description: '粉色裙子的甜美女孩',
+    assetKey: 'character-pudding',
+    assetUrl: characterAsset('pudding.png'),
     skinColor: 0xffc5a0,
     hairColor: 0x5b3426,
     outfitColor: 0xff87b7,
@@ -69,8 +81,10 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     id: 'air-captain',
     label: '空军上尉',
-    age: '五年级',
-    description: '空军制服',
+    age: '小学五年级',
+    description: '空军制服的学生队长',
+    assetKey: 'character-air-captain',
+    assetUrl: characterAsset('air-captain.png'),
     skinColor: 0xf4b88d,
     hairColor: 0x27364a,
     outfitColor: 0x597ba8,
