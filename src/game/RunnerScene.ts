@@ -301,33 +301,25 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private createCharacterLobby(): void {
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
-    this.setupLayer.add(this.add.circle(66, 86, 34, 0xffe46b));
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 596, GAME_WIDTH, 206, 0x74c973));
-    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 532, 326, 116, 0x5cb66a));
-    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 542, 278, 74, 0x79d184, 0.92));
-    this.setupLayer.add(this.add.rectangle(72, 176, 120, 76, 0xf6f1df).setStrokeStyle(3, 0xcf5d45));
-    this.setupLayer.add(this.add.rectangle(72, 126, 130, 20, 0xcf5d45));
-    this.setupLayer.add(this.add.rectangle(290, 162, 90, 64, 0xdff2fb).setStrokeStyle(3, 0x4f9ed8));
-    this.setupLayer.add(this.add.rectangle(290, 116, 100, 18, 0x4f9ed8));
+    this.drawGardenLobby();
 
     this.setupLayer.add(
       this.add
-        .text(GAME_WIDTH / 2, 50, '选择角色', {
+        .text(GAME_WIDTH / 2, 48, '选择角色', {
           ...TEXT_STYLE,
-          color: '#ffffff',
-          fontSize: '28px',
+          color: '#24664a',
+          fontSize: '26px',
           fontStyle: 'bold'
         })
         .setOrigin(0.5)
-        .setStroke('#2f80ed', 5)
+        .setStroke('#ffffff', 4)
     );
 
     CHARACTER_PRESETS.forEach((preset, index) => this.addLobbyCharacter(preset, index));
     this.addCharacterDetails();
 
-    this.setupLayer.add(this.createButton(86, 650, 120, 42, '上一个', 0xdff2fb, () => this.selectLobbyCharacter(this.selectedCharacterIndex - 1)));
-    this.setupLayer.add(this.createButton(304, 650, 120, 42, '下一个', 0xdff2fb, () => this.selectLobbyCharacter(this.selectedCharacterIndex + 1)));
+    this.setupLayer.add(this.createButton(86, 650, 120, 42, '上一个', 0xeaf7d8, () => this.selectLobbyCharacter(this.selectedCharacterIndex - 1)));
+    this.setupLayer.add(this.createButton(304, 650, 120, 42, '下一个', 0xeaf7d8, () => this.selectLobbyCharacter(this.selectedCharacterIndex + 1)));
     this.setupLayer.add(
       this.createButton(GAME_WIDTH / 2, 696, 236, 48, '下一步  选地图', 0xffd447, () => {
         this.setupStep = 'map';
@@ -336,22 +328,90 @@ export class RunnerScene extends Phaser.Scene {
     );
   }
 
+  private drawGardenLobby(): void {
+    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xbfefff));
+    this.setupLayer.add(this.add.circle(62, 82, 32, 0xffe46b, 0.92));
+    this.setupLayer.add(this.add.ellipse(326, 82, 76, 28, 0xffffff, 0.55));
+    this.setupLayer.add(this.add.ellipse(284, 104, 108, 34, 0xffffff, 0.46));
+
+    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 604, GAME_WIDTH, 240, 0x74c973));
+    this.setupLayer.add(this.add.ellipse(72, 548, 142, 72, 0x5bbf6a));
+    this.setupLayer.add(this.add.ellipse(318, 548, 142, 72, 0x5bbf6a));
+    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 512, 344, 130, 0x7bdc75, 0.95));
+    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 530, 280, 72, 0xa2e18a, 0.9));
+
+    const path = this.add.graphics();
+    path.fillStyle(0xe7d5a8, 0.78);
+    path.fillPoints(
+      [
+        new Phaser.Geom.Point(178, 328),
+        new Phaser.Geom.Point(214, 328),
+        new Phaser.Geom.Point(330, 642),
+        new Phaser.Geom.Point(60, 642)
+      ],
+      true
+    );
+    path.lineStyle(4, 0xf6e8bd, 0.66);
+    path.strokePoints(
+      [
+        new Phaser.Geom.Point(178, 328),
+        new Phaser.Geom.Point(214, 328),
+        new Phaser.Geom.Point(330, 642),
+        new Phaser.Geom.Point(60, 642),
+        new Phaser.Geom.Point(178, 328)
+      ],
+      true
+    );
+    this.setupLayer.add(path);
+
+    for (const tree of [
+      { x: 38, y: 282, scale: 0.86 },
+      { x: 344, y: 278, scale: 0.92 },
+      { x: 24, y: 438, scale: 0.72 },
+      { x: 364, y: 438, scale: 0.72 }
+    ]) {
+      this.setupLayer.add(this.add.rectangle(tree.x, tree.y + 58 * tree.scale, 14 * tree.scale, 72 * tree.scale, 0x9a6a38));
+      this.setupLayer.add(this.add.circle(tree.x - 18 * tree.scale, tree.y + 12 * tree.scale, 34 * tree.scale, 0x3fae5f));
+      this.setupLayer.add(this.add.circle(tree.x + 16 * tree.scale, tree.y + 10 * tree.scale, 36 * tree.scale, 0x4fbd6d));
+      this.setupLayer.add(this.add.circle(tree.x, tree.y - 16 * tree.scale, 38 * tree.scale, 0x61c86f));
+    }
+
+    this.setupLayer.add(this.add.ellipse(72, 518, 118, 54, 0xffd1e1, 0.42));
+    this.setupLayer.add(this.add.ellipse(318, 518, 112, 48, 0xfff1a8, 0.46));
+    this.setupLayer.add(this.add.ellipse(108, 388, 92, 34, 0x8fdc72, 0.86));
+    this.setupLayer.add(this.add.ellipse(292, 404, 96, 36, 0x8fdc72, 0.86));
+
+    for (const flower of [
+      { x: 42, y: 526, c: 0xff87b7 },
+      { x: 62, y: 508, c: 0xffd447 },
+      { x: 92, y: 540, c: 0xffffff },
+      { x: 294, y: 532, c: 0xffffff },
+      { x: 330, y: 504, c: 0xff87b7 },
+      { x: 350, y: 520, c: 0xffd447 },
+      { x: 132, y: 574, c: 0xffffff },
+      { x: 250, y: 574, c: 0xffd447 }
+    ]) {
+      this.setupLayer.add(this.add.rectangle(flower.x, flower.y + 10, 3, 18, 0x2f9e62));
+      this.setupLayer.add(this.add.star(flower.x, flower.y, 6, 3, 8, flower.c).setStrokeStyle(1, 0xffffff));
+    }
+  }
+
   private addLobbyCharacter(preset: CharacterPreset, index: number): void {
     const selected = index === this.selectedCharacterIndex;
     const spots = [
-      { x: 68, y: 430, scale: 0.5 },
-      { x: 130, y: 342, scale: 0.48 },
-      { x: 195, y: 346, scale: 0.52 },
-      { x: 270, y: 352, scale: 0.48 },
-      { x: 328, y: 430, scale: 0.5 }
+      { x: 62, y: 488, scale: 0.42 },
+      { x: 106, y: 370, scale: 0.4 },
+      { x: 198, y: 328, scale: 0.46 },
+      { x: 294, y: 394, scale: 0.4 },
+      { x: 326, y: 488, scale: 0.42 }
     ];
     const homeSpot = spots[index];
-    const spot = selected ? { x: GAME_WIDTH / 2, y: 354, scale: 0.82 } : homeSpot;
+    const selectedScale = homeSpot.scale * 1.2;
     const character = this.add
-      .container(spot.x, spot.y)
-      .setScale(selected ? spot.scale * 1.36 : spot.scale)
-      .setAlpha(selected ? 1 : 0.78)
-      .setDepth(selected ? 8 : 2 + index);
+      .container(homeSpot.x, homeSpot.y)
+      .setScale(selected ? selectedScale : homeSpot.scale)
+      .setAlpha(selected ? 1 : 0.82)
+      .setDepth(selected ? 14 : 4 + Math.round(homeSpot.y / 10));
 
     character.add(this.add.ellipse(0, 38, 96, 20, 0x000000, selected ? 0.2 : 0.11));
     this.drawLobbyScene(character, preset);
@@ -360,16 +420,16 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer.add(character);
 
     if (selected) {
-      character.add(this.add.circle(0, -48, 74, 0xffd447, 0.18).setStrokeStyle(4, 0xffd447, 0.72).setDepth(-2));
+      character.add(this.add.circle(0, -50, 68, 0xffd447, 0.13).setStrokeStyle(4, 0xffd447, 0.62).setDepth(-2));
       this.tweens.add({
         targets: character,
-        scale: spot.scale * 1.48,
+        scale: homeSpot.scale * 1.28,
         duration: 190,
         ease: 'Back.easeOut'
       });
       this.tweens.add({
         targets: character,
-        y: spot.y - 8,
+        y: homeSpot.y - 6,
         duration: 980,
         yoyo: true,
         repeat: -1,
@@ -551,20 +611,20 @@ export class RunnerScene extends Phaser.Scene {
 
   private addCharacterDetails(): void {
     const preset = CHARACTER_PRESETS[this.selectedCharacterIndex];
-    const panel = this.add.container(GAME_WIDTH / 2, 574);
-    panel.add(this.add.rectangle(0, 0, 330, 92, 0xffffff, 0.94).setStrokeStyle(3, 0xffd447));
+    const panel = this.add.container(GAME_WIDTH / 2, 598);
+    panel.add(this.add.rectangle(0, 0, 330, 76, 0xffffff, 0.94).setStrokeStyle(3, 0xffd447));
     panel.add(
       this.add
-        .text(-142, -28, preset.label, {
+        .text(-142, -22, preset.label, {
           ...TEXT_STYLE,
-          fontSize: '22px',
+          fontSize: '21px',
           fontStyle: 'bold'
         })
         .setOrigin(0, 0.5)
     );
     panel.add(
       this.add
-        .text(142, -28, preset.age, {
+        .text(142, -22, preset.age, {
           ...TEXT_STYLE,
           color: '#527084',
           fontSize: '14px'
@@ -573,10 +633,10 @@ export class RunnerScene extends Phaser.Scene {
     );
     panel.add(
       this.add
-        .text(-142, 14, preset.description, {
+        .text(-142, 13, preset.description, {
           ...TEXT_STYLE,
           color: '#527084',
-          fontSize: '15px',
+          fontSize: '14px',
           wordWrap: { width: 284 }
         })
         .setOrigin(0, 0.5)
@@ -584,7 +644,7 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer.add(panel);
     this.tweens.add({
       targets: panel,
-      y: 562,
+      y: 586,
       alpha: { from: 0, to: 1 },
       duration: 220,
       ease: 'Sine.easeOut'
