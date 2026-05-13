@@ -68,6 +68,7 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   create(): void {
+    document.getElementById('boot-loading')?.remove();
     this.drawWorld();
     this.obstacles = this.physics.add.group();
     this.collectibles = this.physics.add.group();

@@ -41,7 +41,7 @@ npm.cmd run build
 
 可选平台：
 
-- Vercel
+- Vercel（适合快速生成一个对比 GitHub Pages 速度的试玩链接）
 - Netlify
 - GitHub Pages
 
@@ -54,6 +54,14 @@ npm.cmd run build
 - Node 依赖安装：`npm install`
 
 GitHub Pages 需要到仓库设置里启用 Pages，并将 Source 设置为 GitHub Actions。当前 Vite 已在 GitHub Pages 构建时使用 `/run_cool/` 作为 `base` 路径。
+
+当前仓库也包含 `vercel.json`，在 Vercel 导入仓库后可直接使用：
+
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Install Command: `npm install`
+
+建议同时保留 GitHub Pages 和 Vercel 两个试玩链接，发给国内朋友时对比微信内置浏览器打开速度。
 
 ## 玩法说明
 

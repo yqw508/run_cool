@@ -4,11 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#65c7f7" />
-    <title>酷跑小队</title>
+    <title>萌娃酷跑</title>
   </head>
   <body>
     <main id="app">
-      <div id="game"></div>
+      <div id="game">
+        <div id="boot-loading" class="boot-loading" aria-live="polite">
+          <div class="boot-card">
+            <div class="boot-title">萌娃酷跑</div>
+            <div class="boot-subtitle">正在加载游戏，请稍等</div>
+            <div class="boot-track"><span></span></div>
+          </div>
+        </div>
+      </div>
       <noscript>请启用 JavaScript 后再开始游戏。</noscript>
     </main>
     <script type="module" src="/src/main.ts"></script>
