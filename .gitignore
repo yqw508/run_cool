@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.tmp/
+tmp/
+tmp-imagegen-prompts/
+
+*.log
+*.local
+
+.DS_Store
+Thumbs.db
