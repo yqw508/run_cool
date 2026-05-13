@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === 'github-pages' ? '/run_cool/' : '/',
   server: {
     port: 5173
   },
@@ -11,4 +12,4 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true
   }
-});
+}));

@@ -6,7 +6,7 @@ import { bindSwipeInput, type GestureDirection } from './input';
 import { getThemeForRunDistance, LEVEL_THEMES, type LevelTheme, type ThemeObstacle } from './levels';
 import { getLaneX, getRunSpeed, getScore, getSpawnDelay, nextLane } from './progression';
 
-type GameState = 'setup' | 'running' | 'ended';
+type GameState = 'setup' | 'running' | 'paused' | 'ended';
 type RunnerPose = 'run' | 'jump' | 'slide';
 type ObstacleKind = 'block' | 'bar';
 
@@ -42,6 +42,7 @@ export class RunnerScene extends Phaser.Scene {
   private worldLayer?: Phaser.GameObjects.Container;
   private setupLayer!: Phaser.GameObjects.Container;
   private hudLayer!: Phaser.GameObjects.Container;
+  private overlayLayer!: Phaser.GameObjects.Container;
   private resultLayer!: Phaser.GameObjects.Container;
   private scoreText!: Phaser.GameObjects.Text;
   private themeLabelText!: Phaser.GameObjects.Text;
@@ -57,6 +58,8 @@ export class RunnerScene extends Phaser.Scene {
   private distanceMeters = 0;
   private stars = 0;
   private nextSpawnAt = 0;
+  private pausedAt = 0;
+  private hasSeenTutorial = false;
   private pose: RunnerPose = 'run';
   private poseTimer?: Phaser.Time.TimerEvent;
 
@@ -77,6 +80,7 @@ export class RunnerScene extends Phaser.Scene {
     this.createHud();
     this.createSetupLayer();
     this.createResultLayer();
+    this.createOverlayLayer();
     this.bindControls();
 
     this.physics.add.overlap(this.player, this.collectibles, (_, star) => this.collectStar(star as Collectible));
@@ -236,7 +240,8 @@ export class RunnerScene extends Phaser.Scene {
         fontSize: '15px'
       })
       .setOrigin(0.5);
-    this.hudLayer.add([this.scoreText, this.themeLabelText, this.healthText, hintText]);
+    const pauseButton = this.createButton(GAME_WIDTH - 48, 34, 62, 34, '\u6682\u505c', 0xfff1a8, () => this.pauseRun());
+    this.hudLayer.add([this.scoreText, this.themeLabelText, this.healthText, hintText, pauseButton]);
   }
 
   private updateHud(): void {
@@ -345,6 +350,10 @@ export class RunnerScene extends Phaser.Scene {
 
   private createResultLayer(): void {
     this.resultLayer = this.add.container(0, 0).setVisible(false);
+  }
+
+  private createOverlayLayer(): void {
+    this.overlayLayer = this.add.container(0, 0).setVisible(false);
   }
 
   private refreshSetup(): void {
@@ -479,6 +488,7 @@ export class RunnerScene extends Phaser.Scene {
   private enterSetup(): void {
     this.state = 'setup';
     this.stopThemeMusic();
+    this.overlayLayer.setVisible(false);
     this.setupLayer.setVisible(true);
     this.resultLayer.setVisible(false);
     this.hudLayer.setVisible(false);
@@ -504,6 +514,66 @@ export class RunnerScene extends Phaser.Scene {
     this.switchThemeMusic(this.currentTheme);
     this.clearObjects();
     this.updateHud();
+    if (!this.hasSeenTutorial) {
+      this.hasSeenTutorial = true;
+      this.pauseRun(
+        '\u65b0\u624b\u5f15\u5bfc',
+        '\u5de6\u53f3\u6ed1\u52a8\u6362\u8dd1\u9053\n\u4e0a\u6ed1\u8df3\u8dc3\uff0c\u4e0b\u6ed1\u6ed1\u884c\n\u78b0\u5230\u969c\u788d\u4f1a\u5148\u6263\u751f\u547d'
+      );
+    }
+  }
+
+  private pauseRun(title = '\u6682\u505c', body = '\u4f11\u606f\u4e00\u4e0b\uff0c\u51c6\u5907\u597d\u518d\u7ee7\u7eed\u9177\u8dd1'): void {
+    if (this.state !== 'running') {
+      return;
+    }
+
+    this.state = 'paused';
+    this.pausedAt = this.time.now;
+    this.stopThemeMusic();
+    this.showOverlay(title, body);
+  }
+
+  private resumeRun(): void {
+    if (this.state !== 'paused') {
+      return;
+    }
+
+    const pausedDuration = this.time.now - this.pausedAt;
+    this.runStartedAt += pausedDuration;
+    this.nextSpawnAt += pausedDuration;
+    this.state = 'running';
+    this.overlayLayer.setVisible(false);
+    this.switchThemeMusic(this.currentTheme);
+  }
+
+  private showOverlay(title: string, body: string): void {
+    this.overlayLayer.destroy(true);
+    this.overlayLayer = this.add.container(0, 0).setVisible(true);
+    this.overlayLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x17263a, 0.42));
+    this.overlayLayer.add(this.add.rectangle(GAME_WIDTH / 2, 360, 318, 248, 0xffffff, 0.96).setStrokeStyle(3, 0xffd447));
+    this.overlayLayer.add(
+      this.add
+        .text(GAME_WIDTH / 2, 290, title, {
+          ...TEXT_STYLE,
+          color: '#17263a',
+          fontSize: '26px',
+          fontStyle: 'bold'
+        })
+        .setOrigin(0.5)
+    );
+    this.overlayLayer.add(
+      this.add
+        .text(GAME_WIDTH / 2, 352, body, {
+          ...TEXT_STYLE,
+          color: '#527084',
+          fontSize: '17px',
+          align: 'center',
+          lineSpacing: 8
+        })
+        .setOrigin(0.5)
+    );
+    this.overlayLayer.add(this.createButton(GAME_WIDTH / 2, 444, 210, 50, '\u7ee7\u7eed\u9177\u8dd1', 0x7ed957, () => this.resumeRun()));
   }
 
   private spawnPattern(): void {

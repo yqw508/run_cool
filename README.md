@@ -45,13 +45,15 @@ npm.cmd run build
 - Netlify
 - GitHub Pages
 
+当前仓库已包含 GitHub Pages 自动部署工作流：`.github/workflows/deploy-pages.yml`。推送到 `main` 后会自动执行测试、构建并发布 `dist`。
+
 部署配置：
 
 - 构建命令：`npm run build`
 - 输出目录：`dist`
 - Node 依赖安装：`npm install`
 
-如果使用 GitHub Pages，需要注意 Vite 的 `base` 路径配置；如果希望少折腾，优先使用 Vercel 或 Netlify。
+GitHub Pages 需要到仓库设置里启用 Pages，并将 Source 设置为 GitHub Actions。当前 Vite 已在 GitHub Pages 构建时使用 `/run_cool/` 作为 `base` 路径。
 
 ## 玩法说明
 
@@ -60,6 +62,8 @@ npm.cmd run build
 - 下滑：滑行，躲避高障碍。
 - 每局 3 点生命值，撞到未躲开的障碍物扣 1 点。
 - 生命值归零后进入结算界面。
+- 首次开始会显示新手引导。
+- 游戏中可点击右上角“暂停”，准备好后继续。
 
 ## 项目文档
 
@@ -69,8 +73,7 @@ npm.cmd run build
 
 ## 下一步建议
 
-1. 初始化 Git 仓库。
-2. 添加 `.gitignore`，排除 `node_modules`、`dist` 和临时文件。
-3. 推送到 GitHub。
-4. 使用 Vercel 或 Netlify 部署试玩链接。
-5. 发给少量朋友和孩子试玩，收集反馈后再决定是否进入微信小游戏/小程序路线。
+1. 在 GitHub 仓库设置中启用 Pages，Source 选择 GitHub Actions。
+2. 等待 Actions 完成部署，拿到 GitHub Pages 试玩链接。
+3. 用手机微信打开试玩链接做冒烟测试。
+4. 发给少量朋友和孩子试玩，收集反馈后再决定是否进入微信小游戏/小程序路线。
