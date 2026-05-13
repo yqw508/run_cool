@@ -346,29 +346,127 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private addLobbyCharacter(preset: CharacterPreset, index: number): void {
-    const offset = index - this.selectedCharacterIndex;
-    const selected = offset === 0;
-    const x = GAME_WIDTH / 2 + offset * 66;
-    const y = selected ? 420 : 454 + Math.abs(offset) * 8;
-    const scale = selected ? 1.18 : Math.max(0.55, 0.78 - Math.abs(offset) * 0.08);
-    const character = this.add.container(x, y).setScale(scale).setAlpha(selected ? 1 : 0.58).setDepth(selected ? 5 : 2 - Math.abs(offset));
+    const selected = index === this.selectedCharacterIndex;
+    const spots = [
+      { x: 56, y: 500, scale: 0.66 },
+      { x: 126, y: 494, scale: 0.72 },
+      { x: 195, y: 430, scale: 0.86 },
+      { x: 264, y: 494, scale: 0.72 },
+      { x: 334, y: 500, scale: 0.66 }
+    ];
+    const spot = spots[index];
+    const character = this.add
+      .container(spot.x, spot.y)
+      .setScale(selected ? spot.scale * 1.36 : spot.scale)
+      .setAlpha(selected ? 1 : 0.78)
+      .setDepth(selected ? 8 : 2 + index);
 
-    character.add(this.add.ellipse(0, 34, 96, 22, 0x000000, selected ? 0.18 : 0.1));
-    this.drawCharacterParts(character, preset);
-    character.setInteractive(new Phaser.Geom.Rectangle(-48, -150, 96, 180), Phaser.Geom.Rectangle.Contains);
+    character.add(this.add.ellipse(0, 38, 96, 20, 0x000000, selected ? 0.2 : 0.11));
+    this.drawLobbyScene(character, preset);
+    character.setInteractive(new Phaser.Geom.Rectangle(-58, -150, 116, 190), Phaser.Geom.Rectangle.Contains);
     character.on('pointerup', () => this.selectLobbyCharacter(index));
     this.setupLayer.add(character);
 
     if (selected) {
+      character.add(this.add.circle(0, -38, 70, 0xffd447, 0.18).setStrokeStyle(4, 0xffd447, 0.72).setDepth(-2));
       this.tweens.add({
         targets: character,
-        y: y - 8,
-        duration: 760,
+        scale: spot.scale * 1.48,
+        duration: 190,
+        ease: 'Back.easeOut'
+      });
+      this.tweens.add({
+        targets: character,
+        y: spot.y - 8,
+        duration: 680,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
       });
     }
+  }
+
+  private drawLobbyScene(character: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    if (preset.id === 'baby-brother') {
+      const baby = this.add.container(0, 0);
+      baby.add(this.add.ellipse(0, 4, 70, 48, 0xdff2fb).setStrokeStyle(3, 0x7fc7e8));
+      baby.add(this.add.circle(-18, -22, 19, preset.skinColor));
+      baby.add(this.add.circle(-26, -28, 8, preset.hairColor));
+      baby.add(this.add.circle(-24, -22, 2, 0x17263a));
+      baby.add(this.add.arc(-13, -16, 6, 20, 160, false, 0x8d4a35).setStrokeStyle(2, 0x8d4a35));
+      baby.add(this.add.rectangle(8, 8, 34, 24, 0xffffff).setStrokeStyle(2, 0x9ed5ef));
+      baby.add(this.add.circle(-36, 18, 8, preset.skinColor));
+      baby.add(this.add.circle(34, 14, 8, preset.skinColor));
+      character.add(baby);
+      this.tweens.add({ targets: baby, x: 10, angle: -5, duration: 760, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return;
+    }
+
+    if (preset.id === 'little-star') {
+      const swing = this.add.container(0, -24);
+      swing.add(this.add.line(0, 0, -32, -82, -16, 0, 0xffffff, 0.8).setOrigin(0).setLineWidth(3));
+      swing.add(this.add.line(0, 0, 32, -82, 16, 0, 0xffffff, 0.8).setOrigin(0).setLineWidth(3));
+      swing.add(this.add.rectangle(0, 8, 62, 9, 0xffd447).setStrokeStyle(2, 0x8c5a2b));
+      this.drawFrontCharacter(swing, preset, 0, -16, 0.62);
+      character.add(swing);
+      this.tweens.add({ targets: swing, angle: { from: -9, to: 9 }, duration: 930, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return;
+    }
+
+    if (preset.id === 'ice-princess') {
+      this.drawFrontCharacter(character, preset, 0, -18, 0.82);
+      for (let i = 0; i < 4; i += 1) {
+        const sparkle = this.add.star(-44 + i * 30, -76 + (i % 2) * 24, 4, 2, 6, 0xffffff, 0.92);
+        character.add(sparkle);
+        this.tweens.add({ targets: sparkle, alpha: 0.25, scale: 1.5, duration: 620 + i * 120, yoyo: true, repeat: -1 });
+      }
+      return;
+    }
+
+    if (preset.id === 'pudding') {
+      const dancer = this.add.container(0, -6);
+      this.drawFrontCharacter(dancer, preset, 0, -14, 0.76);
+      character.add(dancer);
+      this.tweens.add({ targets: dancer, angle: { from: -7, to: 7 }, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return;
+    }
+
+    const captain = this.add.container(0, -12);
+    this.drawFrontCharacter(captain, preset, 0, -12, 0.76);
+    const arm = this.add.rectangle(28, -62, 11, 42, preset.outfitColor).setOrigin(0.5, 1).setAngle(-48);
+    captain.add(arm);
+    character.add(captain);
+    this.tweens.add({ targets: arm, angle: { from: -62, to: -34 }, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  private drawFrontCharacter(parent: Phaser.GameObjects.Container, preset: CharacterPreset, x: number, y: number, scale: number): void {
+    const body = this.add.container(x, y).setScale(scale);
+    body.add(this.add.ellipse(0, 54, 58, 14, 0x000000, 0.14));
+    body.add(this.add.rectangle(-12, 34, 13, 36, preset.detailColor));
+    body.add(this.add.rectangle(12, 34, 13, 36, preset.detailColor));
+    body.add(this.add.rectangle(-12, 54, 20, 8, 0xffffff));
+    body.add(this.add.rectangle(12, 54, 20, 8, 0xffffff));
+    if (preset.style === 'pinkDress' || preset.style === 'iceDress') {
+      body.add(this.add.triangle(0, 2, -32, 48, 32, 48, 0, -30, preset.outfitColor).setStrokeStyle(2, preset.detailColor, 0.7));
+    } else {
+      body.add(this.add.rectangle(0, 2, 50, 58, preset.outfitColor).setStrokeStyle(2, preset.detailColor, 0.7));
+    }
+    body.add(this.add.rectangle(0, -20, 42, 9, preset.accentColor));
+    body.add(this.add.circle(0, -54, 26, preset.skinColor).setStrokeStyle(2, 0xe7a77e, 0.35));
+    body.add(this.add.ellipse(0, -70, 48, 22, preset.hairColor));
+    body.add(this.add.circle(-9, -56, 3, 0x17263a));
+    body.add(this.add.circle(9, -56, 3, 0x17263a));
+    body.add(this.add.arc(0, -47, 9, 20, 160, false, 0x8d4a35).setStrokeStyle(2, 0x8d4a35));
+    body.add(this.add.rectangle(-32, 2, 12, 44, preset.skinColor).setAngle(16));
+    body.add(this.add.rectangle(32, 2, 12, 44, preset.skinColor).setAngle(-16));
+    if (preset.style === 'iceDress') {
+      body.add(this.add.triangle(0, -88, -14, -70, 14, -70, 0, -98, 0xffffff).setStrokeStyle(2, 0x73c7ff));
+    }
+    if (preset.style === 'airUniform') {
+      body.add(this.add.rectangle(0, -78, 48, 10, 0x27364a));
+      body.add(this.add.rectangle(0, -84, 36, 10, preset.outfitColor));
+    }
+    parent.add(body);
   }
 
   private selectLobbyCharacter(index: number): void {
