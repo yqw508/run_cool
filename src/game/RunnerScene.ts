@@ -10,7 +10,7 @@ type GameState = 'setup' | 'running' | 'paused' | 'ended';
 type RunnerPose = 'run' | 'jump' | 'slide';
 type ObstacleKind = 'block' | 'bar';
 
-type Obstacle = Phaser.GameObjects.Rectangle & {
+type Obstacle = Phaser.GameObjects.Container & {
   body: Phaser.Physics.Arcade.Body;
   kind: ObstacleKind;
   damageHandled?: boolean;
@@ -36,6 +36,7 @@ export class RunnerScene extends Phaser.Scene {
   private selection: CharacterSelection = { ...DEFAULT_SELECTION };
   private currentLane: LaneIndex = 1;
   private player!: Phaser.GameObjects.Container;
+  private playerVisual?: Phaser.GameObjects.Container;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private obstacles!: Phaser.Physics.Arcade.Group;
   private collectibles!: Phaser.Physics.Arcade.Group;
@@ -62,6 +63,7 @@ export class RunnerScene extends Phaser.Scene {
   private hasSeenTutorial = false;
   private pose: RunnerPose = 'run';
   private poseTimer?: Phaser.Time.TimerEvent;
+  private runTweens: Phaser.Tweens.Tween[] = [];
 
   constructor() {
     super('RunnerScene');
@@ -398,18 +400,25 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private redrawPlayer(): void {
+    this.stopRunAnimation();
     this.player.removeAll(true);
     this.drawPlayerParts(this.player);
+    if (this.state === 'running' && this.pose === 'run') {
+      this.startRunAnimation();
+    }
   }
 
   private drawPlayerParts(player: Phaser.GameObjects.Container): void {
-    this.drawCharacterParts(player, resolveSelection(this.selection));
+    const visual = this.add.container(0, 0);
+    this.drawCharacterParts(visual, resolveSelection(this.selection));
+    player.add(visual);
+    this.playerVisual = visual;
   }
 
   private drawCharacterParts(player: Phaser.GameObjects.Container, preset: CharacterPreset): void {
     if (this.textures.exists(preset.assetKey)) {
       player.add(this.add.ellipse(0, 8, 70, 18, 0x000000, 0.14));
-      player.add(this.add.image(0, 20, preset.assetKey).setOrigin(0.5, 1).setDisplaySize(92, 138));
+      player.add(this.add.image(0, 20, preset.assetKey).setOrigin(0.5, 1).setDisplaySize(108, 162));
       return;
     }
 
@@ -480,22 +489,78 @@ export class RunnerScene extends Phaser.Scene {
     if (direction === 'down') {
       this.setPose('slide', SLIDE_DURATION_MS);
       this.tweens.add({
-        targets: this.player,
+        targets: this.playerVisual ?? this.player,
+        scaleX: 1.12,
         scaleY: 0.68,
+        angle: -8,
         yoyo: true,
         duration: SLIDE_DURATION_MS / 2,
         ease: 'Sine.easeInOut',
-        onComplete: () => this.player.setScale(1)
+        onComplete: () => {
+          (this.playerVisual ?? this.player).setScale(1);
+          (this.playerVisual ?? this.player).setAngle(0);
+        }
       });
     }
   }
 
   private setPose(pose: RunnerPose, duration: number): void {
     this.pose = pose;
+    this.stopRunAnimation();
+
+    if (pose === 'jump') {
+      this.tweens.add({
+        targets: this.playerVisual,
+        angle: 10,
+        scaleX: 0.96,
+        scaleY: 1.05,
+        yoyo: true,
+        duration: duration / 2,
+        ease: 'Sine.easeOut'
+      });
+    }
+
     this.poseTimer?.remove(false);
     this.poseTimer = this.time.delayedCall(duration, () => {
       this.pose = 'run';
+      if (this.state === 'running') {
+        this.startRunAnimation();
+      }
     });
+  }
+
+  private startRunAnimation(): void {
+    if (!this.playerVisual || this.runTweens.length > 0) {
+      return;
+    }
+
+    this.playerVisual.setPosition(0, 0).setScale(1).setAngle(0);
+    this.runTweens = [
+      this.tweens.add({
+        targets: this.playerVisual,
+        y: -8,
+        scaleX: 1.04,
+        scaleY: 0.97,
+        duration: 150,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      }),
+      this.tweens.add({
+        targets: this.playerVisual,
+        angle: { from: -4, to: 4 },
+        duration: 300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      })
+    ];
+  }
+
+  private stopRunAnimation(): void {
+    this.runTweens.forEach((tween) => tween.stop());
+    this.runTweens = [];
+    this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
   }
 
   private enterSetup(): void {
@@ -507,6 +572,7 @@ export class RunnerScene extends Phaser.Scene {
     this.hudLayer.setVisible(false);
     this.player.setVisible(true);
     this.player.setPosition(getLaneX(1), PLAYER_Y);
+    this.stopRunAnimation();
   }
 
   private startRun(): void {
@@ -523,6 +589,8 @@ export class RunnerScene extends Phaser.Scene {
     this.nextSpawnAt = this.time.now + 600;
     this.pose = 'run';
     this.player.setVisible(true).setPosition(getLaneX(this.currentLane), PLAYER_Y).setScale(1).setAlpha(1);
+    this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
+    this.startRunAnimation();
     this.drawWorld();
     this.switchThemeMusic(this.currentTheme);
     this.clearObjects();
@@ -543,6 +611,7 @@ export class RunnerScene extends Phaser.Scene {
 
     this.state = 'paused';
     this.pausedAt = this.time.now;
+    this.stopRunAnimation();
     this.stopThemeMusic();
     this.showOverlay(title, body);
   }
@@ -557,6 +626,9 @@ export class RunnerScene extends Phaser.Scene {
     this.nextSpawnAt += pausedDuration;
     this.state = 'running';
     this.overlayLayer.setVisible(false);
+    if (this.pose === 'run') {
+      this.startRunAnimation();
+    }
     this.switchThemeMusic(this.currentTheme);
   }
 
@@ -605,28 +677,86 @@ export class RunnerScene extends Phaser.Scene {
 
   private spawnObstacle(lane: LaneIndex, kind: ObstacleKind): void {
     const themeObstacle = Phaser.Utils.Array.GetRandom(this.currentTheme.obstacles) as ThemeObstacle;
-    const obstacle = this.add.rectangle(
-      getLaneX(lane),
-      128,
-      kind === 'block' ? 58 : 76,
-      kind === 'block' ? 46 : 24,
-      themeObstacle.color
-    ) as Obstacle;
+    const obstacle = this.add.container(getLaneX(lane), 128) as Obstacle;
     obstacle.kind = kind;
-    obstacle.setStrokeStyle(3, themeObstacle.accentColor);
+    this.drawObstacle(obstacle, themeObstacle, kind);
     this.physics.add.existing(obstacle);
+    obstacle.body.setSize(kind === 'block' ? 64 : 84, kind === 'block' ? 54 : 32);
+    obstacle.body.setOffset(kind === 'block' ? -32 : -42, kind === 'block' ? -27 : -16);
     obstacle.body.setAllowGravity(false);
     obstacle.body.setImmovable(true);
-    const label = this.add
-      .text(obstacle.x, obstacle.y - 2, themeObstacle.label, {
-        ...TEXT_STYLE,
-        color: '#ffffff',
-        fontSize: '12px',
-        fontStyle: 'bold'
-      })
-      .setOrigin(0.5);
-    obstacle.setData('label', label);
     this.obstacles.add(obstacle);
+  }
+
+  private drawObstacle(obstacle: Phaser.GameObjects.Container, themeObstacle: ThemeObstacle, kind: ObstacleKind): void {
+    obstacle.add(this.add.ellipse(0, kind === 'block' ? 24 : 15, kind === 'block' ? 70 : 92, 12, 0x000000, 0.16));
+
+    if (themeObstacle.shape === 'schoolRail') {
+      obstacle.add(this.add.rectangle(0, 0, 82, 10, 0xffd447).setStrokeStyle(2, 0x8c5a2b));
+      for (let x = -34; x <= 34; x += 17) {
+        obstacle.add(this.add.rectangle(x, 5, 7, 42, 0xffffff).setStrokeStyle(2, 0x2f80ed));
+      }
+      obstacle.add(this.add.rectangle(0, 24, 88, 8, 0x2f80ed));
+      return;
+    }
+
+    if (themeObstacle.shape === 'schoolBag') {
+      obstacle.add(this.add.rectangle(0, 4, 54, 48, themeObstacle.color).setStrokeStyle(3, 0x9a2d3a));
+      obstacle.add(this.add.arc(0, -16, 28, 180, 360, false, 0xffb3b3).setStrokeStyle(5, 0xffb3b3));
+      obstacle.add(this.add.rectangle(0, 8, 34, 16, themeObstacle.accentColor, 0.95).setStrokeStyle(2, 0xffd447));
+      obstacle.add(this.add.star(0, 8, 5, 4, 8, 0xffd447));
+      return;
+    }
+
+    if (themeObstacle.shape === 'cart') {
+      obstacle.add(this.add.rectangle(0, -2, 66, 30, 0xffffff).setStrokeStyle(3, 0xff87b7));
+      obstacle.add(this.add.line(0, 0, -42, -20, -26, -2, 0xff87b7).setOrigin(0).setLineWidth(4));
+      obstacle.add(this.add.line(0, 0, 34, -18, 48, -24, 0xff87b7).setOrigin(0).setLineWidth(4));
+      obstacle.add(this.add.circle(-22, 20, 7, 0x6a5b7c));
+      obstacle.add(this.add.circle(24, 20, 7, 0x6a5b7c));
+      return;
+    }
+
+    if (themeObstacle.shape === 'shopStand') {
+      obstacle.add(this.add.rectangle(0, 9, 66, 34, 0xfff1a8).setStrokeStyle(3, 0xe85d5d));
+      obstacle.add(this.add.triangle(0, -18, -42, 0, 42, 0, 0, -24, 0xff87b7).setStrokeStyle(2, 0xe85d5d));
+      obstacle.add(this.add.circle(-18, 8, 6, 0xff5a76));
+      obstacle.add(this.add.circle(0, 8, 6, 0xffffff));
+      obstacle.add(this.add.circle(18, 8, 6, 0xffd447));
+      return;
+    }
+
+    if (themeObstacle.shape === 'woodFence') {
+      obstacle.add(this.add.rectangle(0, -2, 86, 10, 0xffe2a8).setStrokeStyle(2, 0x8c5a2b));
+      obstacle.add(this.add.rectangle(0, 20, 86, 10, 0xffe2a8).setStrokeStyle(2, 0x8c5a2b));
+      for (let x = -32; x <= 32; x += 16) {
+        obstacle.add(this.add.rectangle(x, 8, 9, 48, 0x9a6a38).setStrokeStyle(2, 0x6f451f));
+      }
+      return;
+    }
+
+    if (themeObstacle.shape === 'bush') {
+      for (let x = -28; x <= 28; x += 14) {
+        obstacle.add(this.add.circle(x, 6 - Math.abs(x) / 8, 18, 0x2f9e62).setStrokeStyle(2, 0xc6f7b2));
+      }
+      obstacle.add(this.add.rectangle(0, 24, 70, 15, 0x2b7a45));
+      return;
+    }
+
+    if (themeObstacle.shape === 'parkGate') {
+      obstacle.add(this.add.arc(0, 16, 40, 180, 360, false, themeObstacle.color).setStrokeStyle(8, themeObstacle.color));
+      obstacle.add(this.add.rectangle(-34, 14, 9, 42, 0xffffff).setStrokeStyle(2, themeObstacle.color));
+      obstacle.add(this.add.rectangle(34, 14, 9, 42, 0xffffff).setStrokeStyle(2, themeObstacle.color));
+      obstacle.add(this.add.star(0, -20, 5, 5, 12, 0xffd447));
+      return;
+    }
+
+    for (let i = 0; i < 5; i += 1) {
+      const x = -32 + i * 16;
+      const color = i % 2 === 0 ? 0xff5a76 : 0xffd447;
+      obstacle.add(this.add.line(0, 0, x, 20, x, -10, 0xffffff, 0.8).setOrigin(0).setLineWidth(2));
+      obstacle.add(this.add.circle(x, -18, 11, color).setStrokeStyle(2, 0xffffff));
+    }
   }
 
   private spawnStar(lane: LaneIndex): void {
@@ -642,13 +772,7 @@ export class RunnerScene extends Phaser.Scene {
       const obstacle = child as Obstacle;
       obstacle.y += moveY;
       obstacle.scale += delta / 9000;
-      const label = obstacle.getData('label') as Phaser.GameObjects.Text | undefined;
-      if (label) {
-        label.setPosition(obstacle.x, obstacle.y - 2);
-        label.setScale(obstacle.scale);
-      }
       if (obstacle.y > GAME_HEIGHT + 60) {
-        label?.destroy();
         obstacle.destroy();
       }
       return true;
@@ -692,7 +816,6 @@ export class RunnerScene extends Phaser.Scene {
     }
 
     obstacle.damageHandled = true;
-    (obstacle.getData('label') as Phaser.GameObjects.Text | undefined)?.destroy();
     obstacle.destroy();
     this.playHitFeedback();
     this.updateHud();
@@ -806,6 +929,7 @@ export class RunnerScene extends Phaser.Scene {
 
   private endRun(): void {
     this.state = 'ended';
+    this.stopRunAnimation();
     this.stopThemeMusic();
     this.hudLayer.setVisible(false);
     this.clearObjects();
@@ -842,11 +966,6 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private clearObjects(): void {
-    this.obstacles.children.each((child) => {
-      const obstacle = child as Obstacle;
-      (obstacle.getData('label') as Phaser.GameObjects.Text | undefined)?.destroy();
-      return true;
-    });
     this.obstacles.clear(true, true);
     this.collectibles.clear(true, true);
   }

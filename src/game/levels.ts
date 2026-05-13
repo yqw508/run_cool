@@ -14,10 +14,21 @@ export type LandmarkKind =
   | 'rollerCoaster'
   | 'carousel';
 
+export type ObstacleShape =
+  | 'schoolRail'
+  | 'schoolBag'
+  | 'cart'
+  | 'shopStand'
+  | 'woodFence'
+  | 'bush'
+  | 'parkGate'
+  | 'balloons';
+
 export type ThemeObstacle = {
   label: string;
   color: number;
   accentColor: number;
+  shape: ObstacleShape;
 };
 
 export type LevelTheme = {
@@ -49,8 +60,8 @@ export const LEVEL_THEMES: LevelTheme[] = [
     musicKey: 'music-campus',
     landmarks: ['school', 'track', 'library'],
     obstacles: [
-      { label: '书包', color: 0x2f80ed, accentColor: 0xffd447 },
-      { label: '栏杆', color: 0xff6b6b, accentColor: 0xffffff }
+      { label: '栏杆', color: 0x2f80ed, accentColor: 0xffd447, shape: 'schoolRail' },
+      { label: '书包', color: 0xff6b6b, accentColor: 0xffffff, shape: 'schoolBag' }
     ]
   },
   {
@@ -65,8 +76,8 @@ export const LEVEL_THEMES: LevelTheme[] = [
     musicKey: 'music-mall',
     landmarks: ['arcade', 'restaurant', 'cinema'],
     obstacles: [
-      { label: '购物袋', color: 0xff87b7, accentColor: 0xffffff },
-      { label: '爆米花', color: 0xffd447, accentColor: 0xe85d5d }
+      { label: '购物车', color: 0xff87b7, accentColor: 0xffffff, shape: 'cart' },
+      { label: '甜品摊', color: 0xffd447, accentColor: 0xe85d5d, shape: 'shopStand' }
     ]
   },
   {
@@ -81,8 +92,8 @@ export const LEVEL_THEMES: LevelTheme[] = [
     musicKey: 'music-zoo',
     landmarks: ['zooGate', 'animal', 'fence'],
     obstacles: [
-      { label: '木栅栏', color: 0x9a6a38, accentColor: 0xffe2a8 },
-      { label: '草丛', color: 0x2f9e62, accentColor: 0xc6f7b2 }
+      { label: '木栅栏', color: 0x9a6a38, accentColor: 0xffe2a8, shape: 'woodFence' },
+      { label: '灌木丛', color: 0x2f9e62, accentColor: 0xc6f7b2, shape: 'bush' }
     ]
   },
   {
@@ -97,8 +108,8 @@ export const LEVEL_THEMES: LevelTheme[] = [
     musicKey: 'music-amusement',
     landmarks: ['ferrisWheel', 'rollerCoaster', 'carousel'],
     obstacles: [
-      { label: '护栏', color: 0x7a5cff, accentColor: 0xffffff },
-      { label: '气球摊', color: 0xff5a76, accentColor: 0xffd447 }
+      { label: '小拱门', color: 0x7a5cff, accentColor: 0xffffff, shape: 'parkGate' },
+      { label: '气球串', color: 0xff5a76, accentColor: 0xffd447, shape: 'balloons' }
     ]
   }
 ];
