@@ -21,3 +21,11 @@ new Phaser.Game({
   },
   scene: [RunnerScene]
 });
+
+const gameRoot = document.getElementById('game');
+if (gameRoot) {
+  void import('./three/ThreeTechPreview').then(({ ThreeTechPreview }) => {
+    const threePreview = new ThreeTechPreview(gameRoot);
+    window.addEventListener('beforeunload', () => threePreview.dispose(), { once: true });
+  });
+}

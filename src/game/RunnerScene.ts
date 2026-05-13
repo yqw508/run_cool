@@ -255,39 +255,60 @@ export class RunnerScene extends Phaser.Scene {
 
   private createHud(): void {
     this.hudLayer = this.add.container(0, 0);
-    this.scoreText = this.add.text(16, 18, '得分 0  星星 0', {
+    const statsBg = this.add.graphics();
+    statsBg.fillStyle(0x17263a, 0.18);
+    statsBg.fillRoundedRect(12, 12, 162, 62, 10);
+
+    const scoreIcon = this.add.container(30, 30);
+    scoreIcon.add(this.add.circle(0, 0, 10, 0xffd447).setStrokeStyle(2, 0xffffff));
+    scoreIcon.add(this.add.rectangle(0, 14, 10, 8, 0xffd447).setStrokeStyle(2, 0xffffff));
+    scoreIcon.add(this.add.rectangle(0, 21, 24, 5, 0xffffff, 0.9));
+
+    const starIcon = this.add.star(96, 31, 5, 6, 13, 0xffd447).setStrokeStyle(2, 0xffffff);
+    this.scoreText = this.add.text(50, 18, '0', {
       ...TEXT_STYLE,
       color: '#ffffff',
       fontSize: '18px',
       fontStyle: 'bold'
     });
-    this.themeLabelText = this.add.text(16, 44, '场景 校园', {
+    this.themeLabelText = this.add.text(116, 18, '0', {
       ...TEXT_STYLE,
       color: '#ffffff',
-      fontSize: '15px',
+      fontSize: '18px',
       fontStyle: 'bold'
     });
-    this.healthText = this.add.text(16, 68, '生命 ♥♥♥', {
+    this.healthText = this.add.text(24, 50, '♥♥♥', {
       ...TEXT_STYLE,
       color: '#ffffff',
-      fontSize: '15px',
+      fontSize: '18px',
       fontStyle: 'bold'
     });
-    const hintText = this.add
-      .text(GAME_WIDTH / 2, 98, '左右换道  上滑跳跃  下滑滑行', {
-        ...TEXT_STYLE,
-        color: '#ffffff',
-        fontSize: '15px'
-      })
-      .setOrigin(0.5);
-    const pauseButton = this.createButton(GAME_WIDTH - 48, 34, 62, 34, '\u6682\u505c', 0xfff1a8, () => this.pauseRun());
-    this.hudLayer.add([this.scoreText, this.themeLabelText, this.healthText, hintText, pauseButton]);
+
+    const gestureHint = this.add.container(GAME_WIDTH / 2, 92);
+    const gestureBg = this.add.graphics();
+    gestureBg.fillStyle(0x17263a, 0.16);
+    gestureBg.fillRoundedRect(-88, -19, 176, 38, 18);
+    gestureHint.add(gestureBg);
+    this.addGestureIcon(gestureHint, -54, 0, 'left');
+    this.addGestureIcon(gestureHint, -18, 0, 'right');
+    this.addGestureIcon(gestureHint, 24, 0, 'up');
+    this.addGestureIcon(gestureHint, 60, 0, 'down');
+
+    const pauseButton = this.createIconButton(GAME_WIDTH - 48, 34, 56, 36, 0xfff1a8, () => this.pauseRun());
+    pauseButton.add(this.add.rectangle(-6, 0, 5, 18, 0x17263a));
+    pauseButton.add(this.add.rectangle(6, 0, 5, 18, 0x17263a));
+    this.hudLayer.add([statsBg, scoreIcon, starIcon, this.scoreText, this.themeLabelText, this.healthText, gestureHint, pauseButton]);
   }
 
   private updateHud(): void {
-    this.scoreText.setText(`得分 ${getScore(this.distanceMeters, this.stars)}  星星 ${this.stars}`);
-    this.themeLabelText.setText(`场景 ${this.currentTheme.label}`);
-    this.healthText.setText(`生命 ${'♥'.repeat(this.healthState.current)}${'♡'.repeat(this.healthState.max - this.healthState.current)}`);
+    this.scoreText.setText(`${getScore(this.distanceMeters, this.stars)}`);
+    this.themeLabelText.setText(`${this.stars}`);
+    this.healthText.setText(`${'♥'.repeat(this.healthState.current)}${'♡'.repeat(this.healthState.max - this.healthState.current)}`);
+  }
+
+  private emitScreen(screen: 'character-lobby' | 'map-select' | 'running' | 'result'): void {
+    document.body.dataset.runCoolScreen = screen;
+    window.dispatchEvent(new CustomEvent('run-cool:screen', { detail: { screen } }));
   }
 
   private createSetupLayer(): void {
@@ -301,6 +322,7 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private createCharacterLobby(): void {
+    this.emitScreen('character-lobby');
     this.drawGardenLobby();
 
     this.setupLayer.add(
@@ -504,26 +526,20 @@ export class RunnerScene extends Phaser.Scene {
       swing.add(this.add.line(0, 0, -42, -112, -24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
       swing.add(this.add.line(0, 0, 42, -112, 24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
       swing.add(this.add.rectangle(0, 32, 86, 10, 0xffd447).setStrokeStyle(2, 0x8c5a2b));
-      const sprite = this.add.image(0, 36, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(112, 168);
-      swing.add(sprite);
+      this.drawLayeredLobbyRig(swing, preset, 112, 168, 36, shadow);
       character.add(swing);
       this.tweens.add({ targets: swing, angle: { from: -8, to: 8 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.addBreathingTween(sprite, shadow, 1320, 0.018);
       return;
     }
 
-    const imageHolder = this.add.container(0, 0);
     const shadow = this.add.ellipse(0, 40, preset.id === 'baby-brother' ? 100 : 82, 18, 0x000000, 0.12);
     character.add(shadow);
     const displayHeight = preset.id === 'baby-brother' ? 122 : 168;
     const displayWidth = preset.id === 'baby-brother' ? 130 : 118;
-    const sprite = this.add.image(0, 36, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(displayWidth, displayHeight);
-    imageHolder.add(sprite);
-    character.add(imageHolder);
-    this.addBreathingTween(sprite, shadow, preset.id === 'baby-brother' ? 1040 : 1280, preset.id === 'baby-brother' ? 0.026 : 0.018);
+    const rig = this.drawLayeredLobbyRig(character, preset, displayWidth, displayHeight, 36, shadow);
 
     if (preset.id === 'baby-brother') {
-      this.tweens.add({ targets: imageHolder, x: 8, angle: -3, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: rig, x: 8, angle: -3, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       return;
     }
 
@@ -537,15 +553,76 @@ export class RunnerScene extends Phaser.Scene {
     }
 
     if (preset.id === 'pudding') {
-      this.tweens.add({ targets: imageHolder, angle: { from: -2.5, to: 2.5 }, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: rig, angle: { from: -2.5, to: 2.5 }, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       return;
     }
 
-    this.tweens.add({ targets: imageHolder, y: -4, duration: 1120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: rig, y: -4, duration: 1120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  private drawLayeredLobbyRig(
+    parent: Phaser.GameObjects.Container,
+    preset: CharacterPreset,
+    displayWidth: number,
+    displayHeight: number,
+    bottomY: number,
+    shadow: Phaser.GameObjects.Ellipse
+  ): Phaser.GameObjects.Container {
+    const rig = this.add.container(0, 0);
+    const texture = this.textures.get(preset.lobbyAssetKey);
+    const source = texture.getSourceImage() as { width: number; height: number };
+    const sourceWidth = source.width;
+    const sourceHeight = source.height;
+    const base = this.add.image(0, bottomY, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(displayWidth, displayHeight);
+    rig.add(base);
+
+    const addBand = (name: string, yRatio: number, heightRatio: number, width = displayWidth, heightScale = 1) => {
+      const part = this.add
+        .image(0, bottomY, preset.lobbyAssetKey)
+        .setOrigin(0.5, 1)
+        .setCrop(0, sourceHeight * yRatio, sourceWidth, sourceHeight * heightRatio)
+        .setDisplaySize(width, displayHeight * heightScale)
+        .setAlpha(0.68);
+      part.setName(name);
+      rig.add(part);
+      return part;
+    };
+
+    if (preset.id === 'baby-brother') {
+      const hands = addBand('baby-hands', 0.68, 0.32, displayWidth, 1.01);
+      rig.add(this.add.ellipse(0, bottomY - displayHeight * 0.05, displayWidth * 0.78, 18, 0xffffff, 0.13).setDepth(-1));
+      this.tweens.add({ targets: base, y: base.y - 4, angle: { from: -1.2, to: 1.2 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: base, scaleY: 1.025, duration: 820, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: hands, x: 5, angle: -2.5, duration: 620, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.addBreathingTween(base, shadow, 1080, 0.012);
+      parent.add(rig);
+      return rig;
+    }
+
+    const lower = addBand('lower-body-overlay', 0.62, 0.38);
+    const head = addBand('head-overlay', 0, 0.38, displayWidth * 0.98, 1.01);
+
+    const chestLight = this.add.ellipse(0, bottomY - displayHeight * 0.52, displayWidth * 0.62, displayHeight * 0.12, 0xffffff, 0.1);
+    rig.add(chestLight);
+    this.tweens.add({ targets: base, scaleY: 1.018, y: base.y - 1, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: head, y: head.y - 1.5, angle: { from: -0.8, to: 0.8 }, duration: 1360, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: lower, angle: { from: -0.8, to: 0.8 }, duration: preset.id === 'pudding' ? 880 : 1280, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: shadow, scaleX: 1.08, alpha: 0.08, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    if (preset.id === 'air-captain') {
+      const wing = this.add.container(38, bottomY - displayHeight * 0.58);
+      wing.add(this.add.rectangle(0, 0, 30, 8, preset.accentColor, 0.92).setStrokeStyle(1, 0xffffff, 0.75));
+      wing.add(this.add.triangle(16, 0, 0, -8, 0, 8, 20, 0, preset.accentColor));
+      rig.add(wing);
+      this.tweens.add({ targets: wing, angle: { from: -8, to: -24 }, y: wing.y - 6, duration: 920, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+
+    parent.add(rig);
+    return rig;
   }
 
   private addBreathingTween(
-    sprite: Phaser.GameObjects.Image,
+    sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Container,
     shadow: Phaser.GameObjects.Ellipse,
     duration: number,
     amount: number
@@ -652,6 +729,7 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private createMapSelect(): void {
+    this.emitScreen('map-select');
     this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
     this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
     this.setupLayer.add(
@@ -800,6 +878,43 @@ export class RunnerScene extends Phaser.Scene {
   private refreshSetup(): void {
     this.setupLayer.destroy(true);
     this.createSetupLayer();
+  }
+
+  private createIconButton(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    color: number,
+    onClick: () => void
+  ): Phaser.GameObjects.Container {
+    const button = this.add.container(x, y);
+    const bg = this.add.rectangle(0, 0, width, height, color, 1).setStrokeStyle(2, 0x152238, 0.2);
+    bg.setInteractive({ useHandCursor: true }).on('pointerup', onClick);
+    button.add(bg);
+    return button;
+  }
+
+  private addGestureIcon(
+    parent: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    direction: 'left' | 'right' | 'up' | 'down'
+  ): void {
+    const icon = this.add.container(x, y);
+    icon.add(this.add.circle(0, 0, 15, 0xffffff, 0.22).setStrokeStyle(2, 0xffffff, 0.72));
+
+    if (direction === 'left' || direction === 'right') {
+      const sign = direction === 'left' ? -1 : 1;
+      icon.add(this.add.rectangle(-4 * sign, 0, 15, 5, 0xffffff));
+      icon.add(this.add.triangle(8 * sign, 0, -5 * sign, -8, -5 * sign, 8, 7 * sign, 0, 0xffffff));
+    } else {
+      const sign = direction === 'up' ? -1 : 1;
+      icon.add(this.add.rectangle(0, -4 * sign, 5, 15, 0xffffff));
+      icon.add(this.add.triangle(0, 8 * sign, -8, -5 * sign, 8, -5 * sign, 0, 7 * sign, 0xffffff));
+    }
+
+    parent.add(icon);
   }
 
   private createButton(
@@ -1008,6 +1123,7 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private startRun(): void {
+    this.emitScreen('running');
     this.state = 'running';
     this.setupLayer.setVisible(false);
     this.resultLayer.setVisible(false);
@@ -1285,9 +1401,8 @@ export class RunnerScene extends Phaser.Scene {
   private drawActionCue(obstacle: Phaser.GameObjects.Container, kind: ObstacleKind): void {
     const cueY = kind === 'block' ? -44 : 36;
     const cueColor = kind === 'block' ? 0x7ed957 : 0x65c7f7;
-    const cueText = kind === 'block' ? '跳' : '蹲';
     const cue = this.add.container(0, cueY);
-    cue.add(this.add.circle(0, 0, 17, cueColor, 0.95).setStrokeStyle(3, 0xffffff));
+    cue.add(this.add.circle(0, 0, 18, cueColor, 0.95).setStrokeStyle(3, 0xffffff));
 
     if (kind === 'block') {
       cue.add(this.add.triangle(0, -3, -8, 6, 8, 6, 0, -9, 0xffffff));
@@ -1297,17 +1412,6 @@ export class RunnerScene extends Phaser.Scene {
       cue.add(this.add.triangle(0, 6, -8, -3, 8, -3, 0, 10, 0xffffff));
     }
 
-    cue.add(
-      this.add
-        .text(23, 0, cueText, {
-          ...TEXT_STYLE,
-          color: '#ffffff',
-          fontSize: '13px',
-          fontStyle: 'bold'
-        })
-        .setOrigin(0.5)
-        .setStroke('#17263a', 4)
-    );
     obstacle.add(cue);
   }
 
@@ -1482,6 +1586,7 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private endRun(): void {
+    this.emitScreen('result');
     this.state = 'ended';
     this.stopRunAnimation();
     this.stopThemeMusic();
