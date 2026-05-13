@@ -75,6 +75,7 @@ export class RunnerScene extends Phaser.Scene {
   preload(): void {
     CHARACTER_PRESETS.forEach((preset) => {
       this.load.image(preset.assetKey, preset.assetUrl);
+      this.load.image(preset.lobbyAssetKey, preset.lobbyAssetUrl);
     });
   }
 
@@ -136,16 +137,6 @@ export class RunnerScene extends Phaser.Scene {
     this.drawThemeLandmarks(theme);
     this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, 680, GAME_WIDTH, 116, theme.groundColor));
     this.drawRoad(theme);
-    this.worldLayer.add(
-      this.add
-        .text(GAME_WIDTH / 2, 42, '\u840c\u5a03\u9177\u8dd1', {
-          ...TEXT_STYLE,
-          color: this.toHexColor(theme.titleColor),
-          fontSize: '30px',
-          fontStyle: 'bold'
-        })
-        .setOrigin(0.5)
-    );
   }
 
   private drawRoad(theme: LevelTheme): void {
@@ -312,9 +303,9 @@ export class RunnerScene extends Phaser.Scene {
   private createCharacterLobby(): void {
     this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
     this.setupLayer.add(this.add.circle(66, 86, 34, 0xffe46b));
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 612, GAME_WIDTH, 180, 0x74c973));
-    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 574, 300, 96, 0x5cb66a));
-    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 584, 250, 64, 0x79d184, 0.92));
+    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 596, GAME_WIDTH, 206, 0x74c973));
+    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 532, 326, 116, 0x5cb66a));
+    this.setupLayer.add(this.add.ellipse(GAME_WIDTH / 2, 542, 278, 74, 0x79d184, 0.92));
     this.setupLayer.add(this.add.rectangle(72, 176, 120, 76, 0xf6f1df).setStrokeStyle(3, 0xcf5d45));
     this.setupLayer.add(this.add.rectangle(72, 126, 130, 20, 0xcf5d45));
     this.setupLayer.add(this.add.rectangle(290, 162, 90, 64, 0xdff2fb).setStrokeStyle(3, 0x4f9ed8));
@@ -335,8 +326,8 @@ export class RunnerScene extends Phaser.Scene {
     CHARACTER_PRESETS.forEach((preset, index) => this.addLobbyCharacter(preset, index));
     this.addCharacterDetails();
 
-    this.setupLayer.add(this.createButton(86, 646, 120, 42, '上一个', 0xdff2fb, () => this.selectLobbyCharacter(this.selectedCharacterIndex - 1)));
-    this.setupLayer.add(this.createButton(304, 646, 120, 42, '下一个', 0xdff2fb, () => this.selectLobbyCharacter(this.selectedCharacterIndex + 1)));
+    this.setupLayer.add(this.createButton(86, 650, 120, 42, '上一个', 0xdff2fb, () => this.selectLobbyCharacter(this.selectedCharacterIndex - 1)));
+    this.setupLayer.add(this.createButton(304, 650, 120, 42, '下一个', 0xdff2fb, () => this.selectLobbyCharacter(this.selectedCharacterIndex + 1)));
     this.setupLayer.add(
       this.createButton(GAME_WIDTH / 2, 696, 236, 48, '下一步  选地图', 0xffd447, () => {
         this.setupStep = 'map';
@@ -348,13 +339,14 @@ export class RunnerScene extends Phaser.Scene {
   private addLobbyCharacter(preset: CharacterPreset, index: number): void {
     const selected = index === this.selectedCharacterIndex;
     const spots = [
-      { x: 56, y: 500, scale: 0.66 },
-      { x: 126, y: 494, scale: 0.72 },
-      { x: 195, y: 430, scale: 0.86 },
-      { x: 264, y: 494, scale: 0.72 },
-      { x: 334, y: 500, scale: 0.66 }
+      { x: 68, y: 430, scale: 0.5 },
+      { x: 130, y: 342, scale: 0.48 },
+      { x: 195, y: 346, scale: 0.52 },
+      { x: 270, y: 352, scale: 0.48 },
+      { x: 328, y: 430, scale: 0.5 }
     ];
-    const spot = spots[index];
+    const homeSpot = spots[index];
+    const spot = selected ? { x: GAME_WIDTH / 2, y: 354, scale: 0.82 } : homeSpot;
     const character = this.add
       .container(spot.x, spot.y)
       .setScale(selected ? spot.scale * 1.36 : spot.scale)
@@ -368,7 +360,7 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer.add(character);
 
     if (selected) {
-      character.add(this.add.circle(0, -38, 70, 0xffd447, 0.18).setStrokeStyle(4, 0xffd447, 0.72).setDepth(-2));
+      character.add(this.add.circle(0, -48, 74, 0xffd447, 0.18).setStrokeStyle(4, 0xffd447, 0.72).setDepth(-2));
       this.tweens.add({
         targets: character,
         scale: spot.scale * 1.48,
@@ -378,7 +370,7 @@ export class RunnerScene extends Phaser.Scene {
       this.tweens.add({
         targets: character,
         y: spot.y - 8,
-        duration: 680,
+        duration: 980,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
@@ -387,6 +379,11 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawLobbyScene(character: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    if (this.textures.exists(preset.lobbyAssetKey)) {
+      this.drawLobbyImageScene(character, preset);
+      return;
+    }
+
     if (preset.id === 'baby-brother') {
       const baby = this.add.container(0, 0);
       baby.add(this.add.ellipse(0, 4, 70, 48, 0xdff2fb).setStrokeStyle(3, 0x7fc7e8));
@@ -439,6 +436,81 @@ export class RunnerScene extends Phaser.Scene {
     this.tweens.add({ targets: arm, angle: { from: -62, to: -34 }, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 
+  private drawLobbyImageScene(character: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    if (preset.id === 'little-star') {
+      const swing = this.add.container(0, -8);
+      const shadow = this.add.ellipse(0, 42, 92, 18, 0x000000, 0.12);
+      character.add(shadow);
+      swing.add(this.add.line(0, 0, -42, -112, -24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
+      swing.add(this.add.line(0, 0, 42, -112, 24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
+      swing.add(this.add.rectangle(0, 32, 86, 10, 0xffd447).setStrokeStyle(2, 0x8c5a2b));
+      const sprite = this.add.image(0, 36, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(112, 168);
+      swing.add(sprite);
+      character.add(swing);
+      this.tweens.add({ targets: swing, angle: { from: -8, to: 8 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.addBreathingTween(sprite, shadow, 1320, 0.018);
+      return;
+    }
+
+    const imageHolder = this.add.container(0, 0);
+    const shadow = this.add.ellipse(0, 40, preset.id === 'baby-brother' ? 100 : 82, 18, 0x000000, 0.12);
+    character.add(shadow);
+    const displayHeight = preset.id === 'baby-brother' ? 122 : 168;
+    const displayWidth = preset.id === 'baby-brother' ? 130 : 118;
+    const sprite = this.add.image(0, 36, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(displayWidth, displayHeight);
+    imageHolder.add(sprite);
+    character.add(imageHolder);
+    this.addBreathingTween(sprite, shadow, preset.id === 'baby-brother' ? 1040 : 1280, preset.id === 'baby-brother' ? 0.026 : 0.018);
+
+    if (preset.id === 'baby-brother') {
+      this.tweens.add({ targets: imageHolder, x: 8, angle: -3, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return;
+    }
+
+    if (preset.id === 'ice-princess') {
+      for (let i = 0; i < 4; i += 1) {
+        const sparkle = this.add.star(-44 + i * 30, -86 + (i % 2) * 22, 4, 2, 6, 0xffffff, 0.94);
+        character.add(sparkle);
+        this.tweens.add({ targets: sparkle, alpha: 0.25, scale: 1.5, duration: 620 + i * 120, yoyo: true, repeat: -1 });
+      }
+      return;
+    }
+
+    if (preset.id === 'pudding') {
+      this.tweens.add({ targets: imageHolder, angle: { from: -2.5, to: 2.5 }, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return;
+    }
+
+    this.tweens.add({ targets: imageHolder, y: -4, duration: 1120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  private addBreathingTween(
+    sprite: Phaser.GameObjects.Image,
+    shadow: Phaser.GameObjects.Ellipse,
+    duration: number,
+    amount: number
+  ): void {
+    this.tweens.add({
+      targets: sprite,
+      scaleX: sprite.scaleX * (1 + amount),
+      scaleY: sprite.scaleY * (1 - amount * 0.7),
+      y: sprite.y - 3,
+      duration,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    this.tweens.add({
+      targets: shadow,
+      scaleX: 1.08,
+      alpha: 0.08,
+      duration,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+  }
+
   private drawFrontCharacter(parent: Phaser.GameObjects.Container, preset: CharacterPreset, x: number, y: number, scale: number): void {
     const body = this.add.container(x, y).setScale(scale);
     body.add(this.add.ellipse(0, 54, 58, 14, 0x000000, 0.14));
@@ -479,11 +551,11 @@ export class RunnerScene extends Phaser.Scene {
 
   private addCharacterDetails(): void {
     const preset = CHARACTER_PRESETS[this.selectedCharacterIndex];
-    const panel = this.add.container(GAME_WIDTH / 2, 548);
-    panel.add(this.add.rectangle(0, 0, 330, 106, 0xffffff, 0.93).setStrokeStyle(3, 0xffd447));
+    const panel = this.add.container(GAME_WIDTH / 2, 574);
+    panel.add(this.add.rectangle(0, 0, 330, 92, 0xffffff, 0.94).setStrokeStyle(3, 0xffd447));
     panel.add(
       this.add
-        .text(-142, -34, preset.label, {
+        .text(-142, -28, preset.label, {
           ...TEXT_STYLE,
           fontSize: '22px',
           fontStyle: 'bold'
@@ -492,7 +564,7 @@ export class RunnerScene extends Phaser.Scene {
     );
     panel.add(
       this.add
-        .text(142, -34, preset.age, {
+        .text(142, -28, preset.age, {
           ...TEXT_STYLE,
           color: '#527084',
           fontSize: '14px'
@@ -501,10 +573,10 @@ export class RunnerScene extends Phaser.Scene {
     );
     panel.add(
       this.add
-        .text(-142, 10, preset.description, {
+        .text(-142, 14, preset.description, {
           ...TEXT_STYLE,
           color: '#527084',
-          fontSize: '16px',
+          fontSize: '15px',
           wordWrap: { width: 284 }
         })
         .setOrigin(0, 0.5)
@@ -512,7 +584,7 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer.add(panel);
     this.tweens.add({
       targets: panel,
-      y: 536,
+      y: 562,
       alpha: { from: 0, to: 1 },
       duration: 220,
       ease: 'Sine.easeOut'

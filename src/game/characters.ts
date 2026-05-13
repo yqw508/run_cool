@@ -7,6 +7,8 @@ export type CharacterPreset = {
   description: string;
   assetKey: string;
   assetUrl: string;
+  lobbyAssetKey: string;
+  lobbyAssetUrl: string;
   skinColor: number;
   hairColor: number;
   outfitColor: number;
@@ -29,6 +31,8 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     description: '穿纸尿裤的萌宝宝',
     assetKey: 'character-baby-brother',
     assetUrl: characterAsset('baby-brother.png'),
+    lobbyAssetKey: 'lobby-baby-brother',
+    lobbyAssetUrl: characterAsset('lobby-baby-brother.png'),
     skinColor: 0xffc9a3,
     hairColor: 0x5c3a28,
     outfitColor: 0xe8f5ec,
@@ -43,6 +47,8 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     description: '西瓜头和背带裤风格',
     assetKey: 'character-little-star',
     assetUrl: characterAsset('little-star.png'),
+    lobbyAssetKey: 'lobby-little-star',
+    lobbyAssetUrl: characterAsset('lobby-little-star.png'),
     skinColor: 0xffc39a,
     hairColor: 0x2d211b,
     outfitColor: 0x31a7ff,
@@ -57,6 +63,8 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     description: '冰雪裙装的萌版公主',
     assetKey: 'character-ice-princess',
     assetUrl: characterAsset('ice-princess.png'),
+    lobbyAssetKey: 'lobby-ice-princess',
+    lobbyAssetUrl: characterAsset('lobby-ice-princess.png'),
     skinColor: 0xffd4b2,
     hairColor: 0xf8f3d6,
     outfitColor: 0x8ed8ff,
@@ -71,6 +79,8 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     description: '粉色裙子的甜美女孩',
     assetKey: 'character-pudding',
     assetUrl: characterAsset('pudding.png'),
+    lobbyAssetKey: 'lobby-pudding',
+    lobbyAssetUrl: characterAsset('lobby-pudding.png'),
     skinColor: 0xffc5a0,
     hairColor: 0x5b3426,
     outfitColor: 0xff87b7,
@@ -85,6 +95,8 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     description: '空军制服的学生队长',
     assetKey: 'character-air-captain',
     assetUrl: characterAsset('air-captain.png'),
+    lobbyAssetKey: 'lobby-air-captain',
+    lobbyAssetUrl: characterAsset('lobby-air-captain.png'),
     skinColor: 0xf4b88d,
     hairColor: 0x27364a,
     outfitColor: 0x597ba8,
