@@ -38,11 +38,11 @@ canvas {
 
 .three-tech-preview {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right));
-  top: max(92px, env(safe-area-inset-top));
+  top: max(88px, env(safe-area-inset-top));
+  right: 0;
+  bottom: 222px;
+  left: 0;
   z-index: 2;
-  width: 132px;
-  height: 176px;
   pointer-events: none;
   opacity: 0;
   transform: translateY(-8px) scale(0.96);

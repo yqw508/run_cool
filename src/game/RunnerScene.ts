@@ -10,6 +10,7 @@ type GameState = 'setup' | 'running' | 'paused' | 'ended';
 type SetupStep = 'character' | 'map';
 type RunnerPose = 'run' | 'jump' | 'slide';
 type ObstacleKind = 'block' | 'bar';
+type LobbyScreen = 'character-lobby' | 'map-select' | 'running' | 'result';
 
 type Obstacle = Phaser.GameObjects.Container & {
   body: Phaser.Physics.Arcade.Body;
@@ -25,6 +26,7 @@ const TEXT_STYLE = {
   fontFamily: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif',
   color: '#17263a'
 };
+const ENABLE_3D_LOBBY_CHARACTERS = true;
 
 declare global {
   interface Window {
@@ -306,9 +308,14 @@ export class RunnerScene extends Phaser.Scene {
     this.healthText.setText(`${'♥'.repeat(this.healthState.current)}${'♡'.repeat(this.healthState.max - this.healthState.current)}`);
   }
 
-  private emitScreen(screen: 'character-lobby' | 'map-select' | 'running' | 'result'): void {
+  private emitScreen(screen: LobbyScreen): void {
     document.body.dataset.runCoolScreen = screen;
     window.dispatchEvent(new CustomEvent('run-cool:screen', { detail: { screen } }));
+  }
+
+  private emitLobbySelection(): void {
+    document.body.dataset.runCoolCharacterIndex = `${this.selectedCharacterIndex}`;
+    window.dispatchEvent(new CustomEvent('run-cool:lobby-selection', { detail: { index: this.selectedCharacterIndex } }));
   }
 
   private createSetupLayer(): void {
@@ -323,6 +330,7 @@ export class RunnerScene extends Phaser.Scene {
 
   private createCharacterLobby(): void {
     this.emitScreen('character-lobby');
+    this.emitLobbySelection();
     this.drawGardenLobby();
 
     this.setupLayer.add(
@@ -435,14 +443,21 @@ export class RunnerScene extends Phaser.Scene {
       .setAlpha(selected ? 1 : 0.82)
       .setDepth(selected ? 14 : 4 + Math.round(homeSpot.y / 10));
 
-    character.add(this.add.ellipse(0, 38, 96, 20, 0x000000, selected ? 0.2 : 0.11));
-    this.drawLobbyScene(character, preset);
+    character.add(this.add.ellipse(0, 38, 110, 26, 0x000000, selected ? 0.16 : 0.07));
+    if (ENABLE_3D_LOBBY_CHARACTERS) {
+      // 3D lobby actors are rendered by ThreeTechPreview; Phaser keeps click zones and selection UI.
+    } else {
+      this.drawLobbyScene(character, preset);
+    }
+
+    if (selected) {
+      character.add(this.add.circle(0, -50, 68, 0xffd447, 0.1).setStrokeStyle(4, 0xffd447, 0.52).setDepth(-2));
+    }
     character.setInteractive(new Phaser.Geom.Rectangle(-58, -150, 116, 190), Phaser.Geom.Rectangle.Contains);
     character.on('pointerup', () => this.selectLobbyCharacter(index));
     this.setupLayer.add(character);
 
     if (selected) {
-      character.add(this.add.circle(0, -50, 68, 0xffd447, 0.13).setStrokeStyle(4, 0xffd447, 0.62).setDepth(-2));
       this.tweens.add({
         targets: character,
         scale: homeSpot.scale * 1.28,
@@ -682,6 +697,7 @@ export class RunnerScene extends Phaser.Scene {
     const normalized = Phaser.Math.Wrap(index, 0, CHARACTER_PRESETS.length);
     this.selectedCharacterIndex = normalized;
     this.selection = { presetId: CHARACTER_PRESETS[normalized].id };
+    this.emitLobbySelection();
     this.refreshSetup();
     this.redrawPlayer();
   }
