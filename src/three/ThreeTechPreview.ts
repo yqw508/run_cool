@@ -51,10 +51,12 @@ export class ThreeTechPreview {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-2.2, 2.2, 3.05, -0.2, 0.1, 100);
   private readonly clock = new THREE.Clock();
+  private readonly environment = new THREE.Group();
   private readonly actors: LobbyActor[] = [];
   private readonly floorGlows: THREE.Mesh[] = [];
   private runner?: RunnerState;
   private currentScreen = document.body.dataset.runCoolScreen ?? '';
+  private activeEnvironment = '';
   private runnerGameState = 'setup';
   private selectedIndex = Number(document.body.dataset.runCoolCharacterIndex ?? 0);
   private frameId = 0;
@@ -65,8 +67,8 @@ export class ThreeTechPreview {
     this.host.className = 'three-tech-preview';
     parent.appendChild(this.host);
 
-    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    this.renderer.setClearColor(0x000000, 0);
+    this.renderer = new THREE.WebGLRenderer({ alpha: false, antialias: true });
+    this.renderer.setClearColor(0xbfefff, 1);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.host.appendChild(this.renderer.domElement);
 
@@ -82,6 +84,7 @@ export class ThreeTechPreview {
     const fillLight = new THREE.DirectionalLight(0x86d7ff, 1);
     fillLight.position.set(-3, 1.8, 4);
     this.scene.add(fillLight);
+    this.scene.add(this.environment);
 
     this.buildLobbyCharacters();
     this.buildRunnerCharacter();
@@ -372,8 +375,9 @@ export class ThreeTechPreview {
     const width = Math.max(260, Math.round(this.host.clientWidth));
     const height = Math.max(300, Math.round(this.host.clientHeight));
     const aspect = width / height;
-    this.camera.left = -2.2 * aspect;
-    this.camera.right = 2.2 * aspect;
+    const halfWidth = Math.max(1.45, 2.2 * aspect);
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
     this.camera.top = 3.05;
     this.camera.bottom = -0.2;
     this.camera.updateProjectionMatrix();
@@ -532,9 +536,13 @@ export class ThreeTechPreview {
 
   private applyScreenVisibility(): void {
     const lobbyVisible = this.currentScreen === 'character-lobby';
-    const runningVisible = this.currentScreen === 'running' && this.runnerGameState === 'running';
-    this.host.classList.toggle('is-visible', lobbyVisible || runningVisible);
+    const mapVisible = this.currentScreen === 'map-select';
+    const runSceneVisible = this.currentScreen === 'running';
+    const runningVisible = runSceneVisible && this.runnerGameState === 'running';
+    this.updateEnvironment();
+    this.host.classList.toggle('is-visible', lobbyVisible || mapVisible || runSceneVisible);
     this.host.classList.toggle('is-lobby', lobbyVisible);
+    this.host.classList.toggle('is-map', mapVisible);
     this.host.classList.toggle('is-running', runningVisible);
     this.actors.forEach((actor) => {
       actor.rig.root.visible = lobbyVisible;
@@ -570,6 +578,216 @@ export class ThreeTechPreview {
     return new THREE.Mesh(geometry, material);
   }
 
+  private updateEnvironment(): void {
+    const nextEnvironment = this.currentScreen === 'map-select' ? 'map' : this.currentScreen === 'running' ? 'run' : 'lobby';
+    if (this.activeEnvironment === nextEnvironment) {
+      return;
+    }
+
+    this.activeEnvironment = nextEnvironment;
+    this.environment.clear();
+    if (nextEnvironment === 'map') {
+      this.buildMapEnvironment();
+      return;
+    }
+    if (nextEnvironment === 'run') {
+      this.buildRunEnvironment();
+      return;
+    }
+    this.buildLobbyEnvironment();
+  }
+
+  private buildLobbyEnvironment(): void {
+    this.renderer.setClearColor(0xbfefff, 1);
+    this.addSkyDecor();
+    this.addGroundBand(0x70cc72, 0.18, 0.95);
+    this.addGardenPath();
+
+    [
+      [-1.92, 1.06, 0.72],
+      [1.9, 1.12, 0.8],
+      [-1.96, 0.2, 0.52],
+      [1.98, 0.28, 0.56]
+    ].forEach(([x, y, scale]) => this.addTree(x, y, scale));
+
+    [
+      [-1.22, 0.7, 0.42, 0x8fdc72],
+      [1.22, 0.66, 0.46, 0x8fdc72],
+      [-1.52, 0.05, 0.46, 0xffd1e1],
+      [1.56, 0.05, 0.48, 0xfff1a8]
+    ].forEach(([x, y, scale, color]) => {
+      this.environment.add(this.createOval(x, y, scale, scale * 0.28, color, 0.7));
+    });
+
+    [
+      [-1.7, 0.12, 0xff87b7],
+      [-1.45, 0.02, 0xffffff],
+      [-1.55, 0.22, 0xffd447],
+      [1.52, 0.18, 0xff87b7],
+      [1.72, 0.08, 0xffd447],
+      [1.36, 0.0, 0xffffff]
+    ].forEach(([x, y, color]) => this.addFlower(x, y, color));
+  }
+
+  private buildMapEnvironment(): void {
+    this.renderer.setClearColor(0x8fd7ff, 1);
+    this.addSkyDecor();
+    this.addGroundBand(0x6fcb70, 0.08, 0.82);
+
+    const island = new THREE.Group();
+    island.position.set(0, 1.1, -0.18);
+    island.scale.set(1.02, 1, 1);
+    const base = this.createOval(0, 0, 1.35, 1.55, 0xeaf7ff, 0.96);
+    const grass = this.createOval(0, 0.02, 1.16, 1.33, 0xbde78a, 0.98);
+    island.add(base, grass);
+    this.environment.add(island);
+
+    const routeMaterial = new THREE.MeshBasicMaterial({ color: 0xffd447, transparent: true, opacity: 0.9 });
+    const points = [
+      new THREE.Vector3(-0.62, 1.64, 0.04),
+      new THREE.Vector3(0.7, 1.36, 0.04),
+      new THREE.Vector3(-0.56, 0.9, 0.04),
+      new THREE.Vector3(0.68, 0.54, 0.04)
+    ];
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const start = points[i];
+      const end = points[i + 1];
+      const mid = start.clone().lerp(end, 0.5);
+      const length = start.distanceTo(end);
+      const road = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, length, 8, 16), routeMaterial);
+      road.position.copy(mid);
+      road.rotation.z = Math.atan2(end.y - start.y, end.x - start.x) - Math.PI / 2;
+      this.environment.add(road);
+    }
+
+    [
+      [-0.62, 1.64, 0xcf5d45],
+      [0.7, 1.36, 0xff87b7],
+      [-0.56, 0.9, 0x2f9e62],
+      [0.68, 0.54, 0x7a5cff]
+    ].forEach(([x, y, color]) => {
+      this.environment.add(this.createOval(x, y - 0.16, 0.42, 0.14, color, 0.22));
+    });
+  }
+
+  private buildRunEnvironment(): void {
+    this.renderer.setClearColor(0x65c7f7, 1);
+    this.environment.add(this.createCloud(1.12, 2.62, 0.52));
+    this.addGroundBand(0x5dbf68, -0.05, 0.42);
+    this.addRunRoad();
+    this.addTree(-1.9, 0.35, 0.48);
+    this.addTree(1.9, 0.35, 0.48);
+  }
+
+  private addSkyDecor(): void {
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 18), new THREE.MeshBasicMaterial({ color: 0xffe46b }));
+    sun.position.set(-1.12, 2.58, -0.2);
+    this.environment.add(sun);
+    this.environment.add(this.createCloud(1.1, 2.62, 0.52));
+    this.environment.add(this.createCloud(0.72, 2.42, 0.68));
+  }
+
+  private createCloud(x: number, y: number, scale: number): THREE.Group {
+    const cloud = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.48 });
+    [-0.18, 0.04, 0.24].forEach((offset, index) => {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.16 + index * 0.02, 18, 12), material);
+      puff.position.set(offset, 0, -0.2);
+      puff.scale.set(1.5, 0.52, 0.18);
+      cloud.add(puff);
+    });
+    cloud.position.set(x, y, -0.2);
+    cloud.scale.setScalar(scale);
+    return cloud;
+  }
+
+  private addGroundBand(color: number, y: number, height: number): void {
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(5.6, height, 0.08), this.createMat(color, 0.64));
+    ground.position.set(0, y, -0.35);
+    this.environment.add(ground);
+  }
+
+  private addGardenPath(): void {
+    const path = new THREE.Shape();
+    path.moveTo(-0.22, 1.08);
+    path.lineTo(0.22, 1.08);
+    path.lineTo(1.2, 0.0);
+    path.lineTo(-1.2, 0.0);
+    path.closePath();
+    const pathMesh = new THREE.Mesh(new THREE.ShapeGeometry(path), new THREE.MeshStandardMaterial({ color: 0xe7d5a8, roughness: 0.72, transparent: true, opacity: 0.82 }));
+    pathMesh.position.z = -0.16;
+    this.environment.add(pathMesh);
+    const shine = this.createOval(0, 0.98, 0.24, 0.06, 0xf6e8bd, 0.52);
+    this.environment.add(shine);
+  }
+
+  private addRunRoad(): void {
+    const roadShape = new THREE.Shape();
+    roadShape.moveTo(-1.35, -0.05);
+    roadShape.lineTo(1.35, -0.05);
+    roadShape.lineTo(0.72, 2.46);
+    roadShape.lineTo(-0.72, 2.46);
+    roadShape.closePath();
+    const road = new THREE.Mesh(new THREE.ShapeGeometry(roadShape), this.createMat(0x263845, 0.58));
+    road.position.z = -0.2;
+    this.environment.add(road);
+
+    const center = new THREE.Mesh(new THREE.BoxGeometry(0.58, 2.55, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 }));
+    center.position.set(0, 1.18, -0.14);
+    this.environment.add(center);
+
+    [-0.48, 0.48].forEach((x) => {
+      const lane = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.54, 0.04), new THREE.MeshBasicMaterial({ color: 0xdff2fb, transparent: true, opacity: 0.34 }));
+      lane.position.set(x, 1.18, -0.1);
+      lane.rotation.z = x < 0 ? -0.08 : 0.08;
+      this.environment.add(lane);
+    });
+
+    for (let y = 0.18; y < 2.35; y += 0.42) {
+      const dash = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.035, 0.04), new THREE.MeshBasicMaterial({ color: 0xdff2fb, transparent: true, opacity: 0.24 }));
+      dash.position.set(0, y, -0.08);
+      this.environment.add(dash);
+    }
+  }
+
+  private addTree(x: number, y: number, scale: number): void {
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.48, 8, 12), this.createMat(0x9a6a38, 0.78));
+    trunk.position.y = -0.22;
+    tree.add(trunk);
+    const leafMaterial = this.createMat(0x56c866, 0.62);
+    [[0, 0.1, 0.28], [-0.16, -0.02, 0.23], [0.17, -0.02, 0.24]].forEach(([lx, ly, radius]) => {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), leafMaterial);
+      leaf.position.set(lx, ly + 0.18, 0);
+      leaf.scale.set(1.08, 0.94, 0.72);
+      tree.add(leaf);
+    });
+    tree.position.set(x, y, -0.05);
+    tree.scale.setScalar(scale);
+    this.environment.add(tree);
+  }
+
+  private addFlower(x: number, y: number, color: number): void {
+    const stem = new THREE.Mesh(new THREE.CapsuleGeometry(0.01, 0.13, 5, 6), this.createMat(0x2f9e62, 0.7));
+    stem.position.set(x, y, 0.02);
+    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshBasicMaterial({ color }));
+    bloom.position.set(x, y + 0.08, 0.04);
+    bloom.scale.set(1.2, 0.8, 0.42);
+    this.environment.add(stem, bloom);
+  }
+
+  private createOval(x: number, y: number, width: number, height: number, color: number, opacity = 1): THREE.Mesh {
+    const material = new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity });
+    const oval = new THREE.Mesh(new THREE.CircleGeometry(0.5, 48), material);
+    oval.position.set(x, y, -0.12);
+    oval.scale.set(width, height, 1);
+    return oval;
+  }
+
+  private createMat(color: number, roughness: number): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({ color, roughness });
+  }
+
   private createActorMaterial(color: number, style: ActorStyle): THREE.MeshStandardMaterial {
     if (style.materialTone === 'silky') {
       return new THREE.MeshStandardMaterial({ color, roughness: 0.38, metalness: 0.04 });
@@ -582,11 +800,11 @@ export class ThreeTechPreview {
 
   private getLobbyHomes(): THREE.Vector3[] {
     return [
-      new THREE.Vector3(-1.16, 0.56, 0),
-      new THREE.Vector3(-0.72, 1.12, 0),
+      new THREE.Vector3(-0.98, 0.56, 0),
+      new THREE.Vector3(-0.55, 1.12, 0),
       new THREE.Vector3(0, 1.4, 0),
-      new THREE.Vector3(0.72, 1.1, 0),
-      new THREE.Vector3(1.16, 0.56, 0)
+      new THREE.Vector3(0.55, 1.1, 0),
+      new THREE.Vector3(0.98, 0.56, 0)
     ];
   }
 
@@ -600,7 +818,7 @@ export class ThreeTechPreview {
   }
 
   private getRunnerScale(index: number): number {
-    return [0.72, 0.64, 0.72, 0.66, 0.73][index] ?? 0.68;
+    return [0.56, 0.5, 0.56, 0.52, 0.58][index] ?? 0.54;
   }
 }
 

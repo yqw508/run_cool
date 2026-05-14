@@ -6,7 +6,8 @@ import { RunnerScene } from './game/RunnerScene';
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  backgroundColor: '#65c7f7',
+  backgroundColor: 'rgba(0, 0, 0, 0)',
+  transparent: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

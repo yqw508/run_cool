@@ -28,6 +28,7 @@ const TEXT_STYLE = {
 };
 const ENABLE_3D_LOBBY_CHARACTERS = true;
 const ENABLE_3D_RUNNER = true;
+const ENABLE_3D_SCENES = true;
 
 declare global {
   interface Window {
@@ -133,6 +134,9 @@ export class RunnerScene extends Phaser.Scene {
   private drawWorld(): void {
     this.worldLayer?.destroy(true);
     this.worldLayer = this.add.container(0, 0).setDepth(-10);
+    if (ENABLE_3D_SCENES) {
+      return;
+    }
     const theme = this.currentTheme;
 
     this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, theme.skyColor));
@@ -375,6 +379,10 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawGardenLobby(): void {
+    if (ENABLE_3D_SCENES) {
+      return;
+    }
+
     this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xbfefff));
     this.setupLayer.add(this.add.circle(62, 82, 32, 0xffe46b, 0.92));
     this.setupLayer.add(this.add.ellipse(326, 82, 76, 28, 0xffffff, 0.55));
@@ -762,8 +770,10 @@ export class RunnerScene extends Phaser.Scene {
 
   private createMapSelect(): void {
     this.emitScreen('map-select');
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
+    if (!ENABLE_3D_SCENES) {
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
+    }
     this.setupLayer.add(
       this.add
         .text(GAME_WIDTH / 2, 48, '选择地图', {
@@ -777,9 +787,11 @@ export class RunnerScene extends Phaser.Scene {
     );
 
     const map = this.add.container(GAME_WIDTH / 2, 342);
-    map.add(this.add.ellipse(0, 18, 332, 440, 0xeaf7ff, 0.96).setStrokeStyle(4, 0xffffff));
-    map.add(this.add.ellipse(0, 28, 286, 386, 0xbde78a, 0.95));
-    this.drawMapPath(map);
+    if (!ENABLE_3D_SCENES) {
+      map.add(this.add.ellipse(0, 18, 332, 440, 0xeaf7ff, 0.96).setStrokeStyle(4, 0xffffff));
+      map.add(this.add.ellipse(0, 28, 286, 386, 0xbde78a, 0.95));
+      this.drawMapPath(map);
+    }
     this.setupLayer.add(map);
 
     const nodes = [
@@ -1152,7 +1164,7 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer.setVisible(true);
     this.resultLayer.setVisible(false);
     this.hudLayer.setVisible(false);
-    this.player.setVisible(true);
+    this.player.setVisible(!ENABLE_3D_SCENES);
     this.player.setAlpha(1);
     this.player.setPosition(getLaneX(1), PLAYER_Y);
     this.stopRunAnimation();
