@@ -3,6 +3,7 @@ dist/
 .tmp/
 tmp/
 tmp-imagegen-prompts/
+.superpowers/
 
 *.log
 *.local
