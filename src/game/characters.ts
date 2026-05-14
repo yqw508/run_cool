@@ -21,7 +21,20 @@ export type CharacterSelection = {
   presetId: CharacterId;
 };
 
-const characterAsset = (fileName: string): string => new URL(`../assets/characters/${fileName}`, import.meta.url).href;
+const CHARACTER_ASSET_URLS: Record<string, string> = {
+  'baby-brother-run-back.png': new URL('../assets/characters/baby-brother-run-back.png', import.meta.url).href,
+  'lobby-baby-brother-v2.png': new URL('../assets/characters/lobby-baby-brother-v2.png', import.meta.url).href,
+  'little-star-run-back-v2.png': new URL('../assets/characters/little-star-run-back-v2.png', import.meta.url).href,
+  'lobby-little-star-v2.png': new URL('../assets/characters/lobby-little-star-v2.png', import.meta.url).href,
+  'ice-princess-run-back-v2.png': new URL('../assets/characters/ice-princess-run-back-v2.png', import.meta.url).href,
+  'lobby-ice-princess-v2.png': new URL('../assets/characters/lobby-ice-princess-v2.png', import.meta.url).href,
+  'pudding-run-back-v2.png': new URL('../assets/characters/pudding-run-back-v2.png', import.meta.url).href,
+  'lobby-pudding-v2.png': new URL('../assets/characters/lobby-pudding-v2.png', import.meta.url).href,
+  'air-captain-run-back-v2.png': new URL('../assets/characters/air-captain-run-back-v2.png', import.meta.url).href,
+  'lobby-air-captain-v2.png': new URL('../assets/characters/lobby-air-captain-v2.png', import.meta.url).href
+};
+
+const characterAsset = (fileName: keyof typeof CHARACTER_ASSET_URLS): string => CHARACTER_ASSET_URLS[fileName];
 
 export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
@@ -30,9 +43,9 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     age: '半岁',
     description: '穿纸尿裤的萌宝宝',
     assetKey: 'character-baby-brother',
-    assetUrl: characterAsset('baby-brother.png'),
+    assetUrl: characterAsset('baby-brother-run-back.png'),
     lobbyAssetKey: 'lobby-baby-brother',
-    lobbyAssetUrl: characterAsset('lobby-baby-brother.png'),
+    lobbyAssetUrl: characterAsset('lobby-baby-brother-v2.png'),
     skinColor: 0xffc9a3,
     hairColor: 0x5c3a28,
     outfitColor: 0xe8f5ec,
@@ -46,9 +59,9 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     age: '幼儿园中班',
     description: '西瓜头和背带裤风格',
     assetKey: 'character-little-star',
-    assetUrl: characterAsset('little-star.png'),
+    assetUrl: characterAsset('little-star-run-back-v2.png'),
     lobbyAssetKey: 'lobby-little-star',
-    lobbyAssetUrl: characterAsset('lobby-little-star.png'),
+    lobbyAssetUrl: characterAsset('lobby-little-star-v2.png'),
     skinColor: 0xffc39a,
     hairColor: 0x2d211b,
     outfitColor: 0x31a7ff,
@@ -62,9 +75,9 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     age: '小学一年级',
     description: '冰雪裙装的萌版公主',
     assetKey: 'character-ice-princess',
-    assetUrl: characterAsset('ice-princess.png'),
+    assetUrl: characterAsset('ice-princess-run-back-v2.png'),
     lobbyAssetKey: 'lobby-ice-princess',
-    lobbyAssetUrl: characterAsset('lobby-ice-princess.png'),
+    lobbyAssetUrl: characterAsset('lobby-ice-princess-v2.png'),
     skinColor: 0xffd4b2,
     hairColor: 0xf8f3d6,
     outfitColor: 0x8ed8ff,
@@ -78,9 +91,9 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     age: '小学二年级',
     description: '粉色裙子的甜美女孩',
     assetKey: 'character-pudding',
-    assetUrl: characterAsset('pudding.png'),
+    assetUrl: characterAsset('pudding-run-back-v2.png'),
     lobbyAssetKey: 'lobby-pudding',
-    lobbyAssetUrl: characterAsset('lobby-pudding.png'),
+    lobbyAssetUrl: characterAsset('lobby-pudding-v2.png'),
     skinColor: 0xffc5a0,
     hairColor: 0x5b3426,
     outfitColor: 0xff87b7,
@@ -94,9 +107,9 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     age: '小学五年级',
     description: '空军制服的学生队长',
     assetKey: 'character-air-captain',
-    assetUrl: characterAsset('air-captain.png'),
+    assetUrl: characterAsset('air-captain-run-back-v2.png'),
     lobbyAssetKey: 'lobby-air-captain',
-    lobbyAssetUrl: characterAsset('lobby-air-captain.png'),
+    lobbyAssetUrl: characterAsset('lobby-air-captain-v2.png'),
     skinColor: 0xf4b88d,
     hairColor: 0x27364a,
     outfitColor: 0x597ba8,
