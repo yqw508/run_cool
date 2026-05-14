@@ -27,6 +27,7 @@ const TEXT_STYLE = {
   color: '#17263a'
 };
 const ENABLE_3D_LOBBY_CHARACTERS = true;
+const ENABLE_3D_RUNNER = true;
 
 declare global {
   interface Window {
@@ -316,6 +317,21 @@ export class RunnerScene extends Phaser.Scene {
   private emitLobbySelection(): void {
     document.body.dataset.runCoolCharacterIndex = `${this.selectedCharacterIndex}`;
     window.dispatchEvent(new CustomEvent('run-cool:lobby-selection', { detail: { index: this.selectedCharacterIndex } }));
+  }
+
+  private emitRunnerState(): void {
+    document.body.dataset.runCoolLane = `${this.currentLane}`;
+    document.body.dataset.runCoolPose = this.pose;
+    window.dispatchEvent(
+      new CustomEvent('run-cool:runner-state', {
+        detail: {
+          characterIndex: this.selectedCharacterIndex,
+          lane: this.currentLane,
+          pose: this.pose,
+          state: this.state
+        }
+      })
+    );
   }
 
   private createSetupLayer(): void {
@@ -1034,6 +1050,7 @@ export class RunnerScene extends Phaser.Scene {
         duration: 130,
         ease: 'Sine.easeOut'
       });
+      this.emitRunnerState();
       return;
     }
 
@@ -1069,6 +1086,7 @@ export class RunnerScene extends Phaser.Scene {
 
   private setPose(pose: RunnerPose, duration: number): void {
     this.pose = pose;
+    this.emitRunnerState();
     this.stopRunAnimation();
 
     if (pose === 'jump') {
@@ -1086,6 +1104,7 @@ export class RunnerScene extends Phaser.Scene {
     this.poseTimer?.remove(false);
     this.poseTimer = this.time.delayedCall(duration, () => {
       this.pose = 'run';
+      this.emitRunnerState();
       if (this.state === 'running') {
         this.startRunAnimation();
       }
@@ -1134,6 +1153,7 @@ export class RunnerScene extends Phaser.Scene {
     this.resultLayer.setVisible(false);
     this.hudLayer.setVisible(false);
     this.player.setVisible(true);
+    this.player.setAlpha(1);
     this.player.setPosition(getLaneX(1), PLAYER_Y);
     this.stopRunAnimation();
   }
@@ -1152,9 +1172,10 @@ export class RunnerScene extends Phaser.Scene {
     this.runStartedAt = this.time.now;
     this.nextSpawnAt = this.time.now + 600;
     this.pose = 'run';
-    this.player.setVisible(true).setPosition(getLaneX(this.currentLane), PLAYER_Y).setScale(1).setAlpha(1);
+    this.player.setVisible(true).setPosition(getLaneX(this.currentLane), PLAYER_Y).setScale(1).setAlpha(ENABLE_3D_RUNNER ? 0 : 1);
     this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
     this.startRunAnimation();
+    this.emitRunnerState();
     this.drawWorld();
     this.switchThemeMusic(this.currentTheme);
     this.clearObjects();
@@ -1175,6 +1196,7 @@ export class RunnerScene extends Phaser.Scene {
 
     this.state = 'paused';
     this.pausedAt = this.time.now;
+    this.emitRunnerState();
     this.stopRunAnimation();
     this.stopThemeMusic();
     this.showOverlay(title, body);
@@ -1189,6 +1211,7 @@ export class RunnerScene extends Phaser.Scene {
     this.runStartedAt += pausedDuration;
     this.nextSpawnAt += pausedDuration;
     this.state = 'running';
+    this.emitRunnerState();
     this.overlayLayer.setVisible(false);
     if (this.pose === 'run') {
       this.startRunAnimation();
@@ -1491,6 +1514,7 @@ export class RunnerScene extends Phaser.Scene {
 
     obstacle.damageHandled = true;
     obstacle.destroy();
+    this.emitRunnerState();
     this.playHitFeedback();
     this.updateHud();
 
@@ -1604,6 +1628,7 @@ export class RunnerScene extends Phaser.Scene {
   private endRun(): void {
     this.emitScreen('result');
     this.state = 'ended';
+    this.emitRunnerState();
     this.stopRunAnimation();
     this.stopThemeMusic();
     this.hudLayer.setVisible(false);

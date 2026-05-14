@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 type LobbyActor = {
   root: THREE.Group;
@@ -9,6 +9,19 @@ type LobbyActor = {
   baseScale: number;
   selectedScale: number;
   home: THREE.Vector3;
+};
+
+type RunnerPose = 'run' | 'jump' | 'slide';
+
+type RunnerState = {
+  root: THREE.Group;
+  mixer?: THREE.AnimationMixer;
+  idle?: THREE.AnimationAction;
+  run?: THREE.AnimationAction;
+  lane: number;
+  targetLane: number;
+  pose: RunnerPose;
+  poseStartedAt: number;
 };
 
 type ActorStyle = {
@@ -37,6 +50,10 @@ export class ThreeTechPreview {
   private readonly loader = new GLTFLoader();
   private readonly actors: LobbyActor[] = [];
   private readonly floorGlows: THREE.Mesh[] = [];
+  private characterGltf?: GLTF;
+  private runner?: RunnerState;
+  private currentScreen = document.body.dataset.runCoolScreen ?? '';
+  private runnerGameState = 'setup';
   private selectedIndex = Number(document.body.dataset.runCoolCharacterIndex ?? 0);
   private frameId = 0;
   private disposed = false;
@@ -70,7 +87,8 @@ export class ThreeTechPreview {
     window.addEventListener('resize', this.resize);
     window.addEventListener('run-cool:screen', this.handleScreenEvent);
     window.addEventListener('run-cool:lobby-selection', this.handleSelectionEvent);
-    this.host.classList.toggle('is-visible', document.body.dataset.runCoolScreen === 'character-lobby');
+    window.addEventListener('run-cool:runner-state', this.handleRunnerStateEvent);
+    this.applyScreenVisibility();
     this.animate();
   }
 
@@ -80,12 +98,14 @@ export class ThreeTechPreview {
     window.removeEventListener('resize', this.resize);
     window.removeEventListener('run-cool:screen', this.handleScreenEvent);
     window.removeEventListener('run-cool:lobby-selection', this.handleSelectionEvent);
+    window.removeEventListener('run-cool:runner-state', this.handleRunnerStateEvent);
     this.host.remove();
     this.renderer.dispose();
   }
 
   private async loadLobbyCharacters(url: string): Promise<void> {
     const gltf = await this.loader.loadAsync(url);
+    this.characterGltf = gltf;
     this.clearLobbyActors();
 
     this.getLobbyHomes().forEach((home, index) => {
@@ -127,7 +147,50 @@ export class ThreeTechPreview {
       });
     });
 
+    this.buildRunnerCharacter();
     this.applySelection();
+    this.applyScreenVisibility();
+  }
+
+  private buildRunnerCharacter(): void {
+    if (!this.characterGltf) {
+      return;
+    }
+
+    this.runner?.mixer?.stopAllAction();
+    this.runner?.root.removeFromParent();
+
+    const root = this.characterGltf.scene.clone(true);
+    const group = new THREE.Group();
+    group.add(root);
+    group.position.set(this.getRunnerLaneX(1), 0.18, 0.02);
+    group.rotation.y = 0.08;
+    group.scale.setScalar(this.getRunnerScale(this.selectedIndex));
+    group.visible = this.currentScreen === 'running';
+    this.styleActor(root, this.selectedIndex);
+    this.addActorAccessories(group, this.selectedIndex);
+    this.scene.add(group);
+
+    const mixer = new THREE.AnimationMixer(root);
+    const idleClip = this.characterGltf.animations.find((clip) => clip.name === 'idle');
+    const runClip = this.characterGltf.animations.find((clip) => clip.name === 'run');
+    const idle = idleClip ? mixer.clipAction(idleClip) : undefined;
+    const run = runClip ? mixer.clipAction(runClip) : undefined;
+    idle?.play();
+    run?.play();
+    idle?.setEffectiveWeight(0);
+    run?.setEffectiveWeight(1);
+
+    this.runner = {
+      root: group,
+      mixer,
+      idle,
+      run,
+      lane: 1,
+      targetLane: 1,
+      pose: 'run',
+      poseStartedAt: this.clock.elapsedTime
+    };
   }
 
   private styleActor(root: THREE.Object3D, index: number): void {
@@ -348,14 +411,52 @@ export class ThreeTechPreview {
 
   private readonly handleScreenEvent = (event: Event): void => {
     const detail = (event as CustomEvent<{ screen: string }>).detail;
-    const show = detail?.screen === 'character-lobby';
-    this.host.classList.toggle('is-visible', show);
+    this.currentScreen = detail?.screen ?? '';
+    this.applyScreenVisibility();
   };
 
   private readonly handleSelectionEvent = (event: Event): void => {
     const detail = (event as CustomEvent<{ index: number }>).detail;
     this.selectedIndex = detail?.index ?? Number(document.body.dataset.runCoolCharacterIndex ?? 0);
     this.applySelection();
+    this.buildRunnerCharacter();
+    this.applyScreenVisibility();
+  };
+
+  private readonly handleRunnerStateEvent = (event: Event): void => {
+    const detail = (event as CustomEvent<{ characterIndex?: number; lane?: number; pose?: RunnerPose; state?: string }>).detail;
+    if (!this.runner) {
+      return;
+    }
+
+    if (typeof detail?.characterIndex === 'number' && detail.characterIndex !== this.selectedIndex) {
+      this.selectedIndex = detail.characterIndex;
+      this.applySelection();
+      this.buildRunnerCharacter();
+    }
+
+    const runner = this.runner;
+    if (typeof detail?.lane === 'number') {
+      runner.targetLane = clamp(detail.lane, 0, 2);
+    }
+    if (detail?.pose && detail.pose !== runner.pose) {
+      runner.pose = detail.pose;
+      runner.poseStartedAt = this.clock.elapsedTime;
+    }
+    if (detail?.state === 'paused') {
+      this.runnerGameState = detail.state;
+      runner.idle?.setEffectiveWeight(1);
+      runner.run?.setEffectiveWeight(0);
+    }
+    if (detail?.state === 'running') {
+      this.runnerGameState = detail.state;
+      runner.idle?.setEffectiveWeight(0);
+      runner.run?.setEffectiveWeight(1);
+    }
+    if (detail?.state === 'ended') {
+      this.runnerGameState = detail.state;
+    }
+    this.applyScreenVisibility();
   };
 
   private animate = (): void => {
@@ -380,9 +481,35 @@ export class ThreeTechPreview {
       const selected = index === this.selectedIndex;
       glow.scale.setScalar((selected ? 0.82 : 0.58) + Math.sin(elapsed * 3.2 + index) * 0.025);
     });
+    this.updateRunner(delta, elapsed);
     this.renderer.render(this.scene, this.camera);
     this.frameId = requestAnimationFrame(this.animate);
   };
+
+  private updateRunner(delta: number, elapsed: number): void {
+    if (!this.runner) {
+      return;
+    }
+
+    const runner = this.runner;
+    runner.mixer?.update(delta * (runner.pose === 'slide' ? 0.7 : 1.18));
+    runner.lane = THREE.MathUtils.damp(runner.lane, runner.targetLane, 12, delta);
+    const laneX = this.getRunnerLaneX(runner.lane);
+    const poseElapsed = elapsed - runner.poseStartedAt;
+    const stride = Math.sin(elapsed * 12);
+    const baseScale = this.getRunnerScale(this.selectedIndex);
+    const jumpArc = runner.pose === 'jump' ? Math.sin(Math.min(1, poseElapsed / 0.62) * Math.PI) * 0.58 : 0;
+    const slideSquash = runner.pose === 'slide' ? 0.66 : 1;
+    const slideLean = runner.pose === 'slide' ? -0.32 : 0;
+    const runBob = runner.pose === 'run' ? Math.abs(stride) * 0.045 : 0;
+
+    runner.root.visible = this.currentScreen === 'running' && this.runnerGameState === 'running';
+    runner.root.position.set(laneX, 0.2 + jumpArc + runBob, 0.06);
+    runner.root.rotation.y = THREE.MathUtils.damp(runner.root.rotation.y, (runner.targetLane - 1) * -0.16, 8, delta);
+    runner.root.rotation.x = THREE.MathUtils.damp(runner.root.rotation.x, slideLean, 10, delta);
+    runner.root.rotation.z = THREE.MathUtils.damp(runner.root.rotation.z, runner.pose === 'jump' ? Math.sin(poseElapsed * 8) * 0.08 : 0, 8, delta);
+    runner.root.scale.set(baseScale * (1 + Math.abs(stride) * 0.018), baseScale * slideSquash * (1 + Math.abs(stride) * 0.026), baseScale);
+  }
 
   private applySelection(): void {
     this.actors.forEach((actor, index) => {
@@ -391,6 +518,23 @@ export class ThreeTechPreview {
       actor.idle?.setEffectiveWeight(selected ? 0.25 : 1);
       actor.run?.setEffectiveWeight(selected ? 1 : 0);
     });
+  }
+
+  private applyScreenVisibility(): void {
+    const lobbyVisible = this.currentScreen === 'character-lobby';
+    const runningVisible = this.currentScreen === 'running' && this.runnerGameState === 'running';
+    this.host.classList.toggle('is-visible', lobbyVisible || runningVisible);
+    this.host.classList.toggle('is-lobby', lobbyVisible);
+    this.host.classList.toggle('is-running', runningVisible);
+    this.actors.forEach((actor) => {
+      actor.root.visible = lobbyVisible;
+    });
+    this.floorGlows.forEach((glow) => {
+      glow.visible = lobbyVisible;
+    });
+    if (this.runner) {
+      this.runner.root.visible = runningVisible;
+    }
   }
 
   private getActorSway(index: number, selected: boolean, elapsed: number): number {
@@ -430,4 +574,16 @@ export class ThreeTechPreview {
     const base = [0.32, 0.26, 0.31, 0.26, 0.32][index] ?? 0.28;
     return selected ? base * 1.14 : base;
   }
+
+  private getRunnerLaneX(lane: number): number {
+    return THREE.MathUtils.lerp(-0.72, 0.72, clamp(lane, 0, 2) / 2);
+  }
+
+  private getRunnerScale(index: number): number {
+    return [0.56, 0.5, 0.56, 0.51, 0.57][index] ?? 0.54;
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

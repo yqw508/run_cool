@@ -38,10 +38,6 @@ canvas {
 
 .three-tech-preview {
   position: absolute;
-  top: max(88px, env(safe-area-inset-top));
-  right: 0;
-  bottom: 222px;
-  left: 0;
   z-index: 2;
   pointer-events: none;
   opacity: 0;
@@ -49,6 +45,17 @@ canvas {
   transition:
     opacity 180ms ease,
     transform 180ms ease;
+}
+
+.three-tech-preview.is-lobby {
+  top: max(88px, env(safe-area-inset-top));
+  right: 0;
+  bottom: 222px;
+  left: 0;
+}
+
+.three-tech-preview.is-running {
+  inset: 0;
 }
 
 .three-tech-preview.is-visible {
