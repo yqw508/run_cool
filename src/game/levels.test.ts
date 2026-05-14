@@ -28,8 +28,13 @@ describe('level themes', () => {
     for (const theme of LEVEL_THEMES) {
       expect(theme.label.length).toBeGreaterThan(0);
       expect(theme.musicKey.length).toBeGreaterThan(0);
+      expect(theme.collectible.label.length).toBeGreaterThan(0);
       expect(theme.landmarks.length).toBeGreaterThanOrEqual(3);
       expect(theme.obstacles.length).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  it('uses scene-specific collectibles for each theme', () => {
+    expect(LEVEL_THEMES.map((theme) => theme.collectible.id)).toEqual(['flower', 'coin', 'leaf', 'balloon']);
   });
 });

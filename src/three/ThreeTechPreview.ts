@@ -38,10 +38,10 @@ type ActorStyle = {
 };
 
 const ACTOR_STYLES: ActorStyle[] = [
-  { skin: 0xffc8a8, hair: 0x4a2b1b, outfit: 0xffffff, accent: 0xaee6ff, shoe: 0x86d7ff, blush: 0xff9f9f, materialTone: 'soft' },
-  { skin: 0xffc39f, hair: 0x23170f, outfit: 0x2f80ed, accent: 0xffd447, shoe: 0xffffff, blush: 0xff9292 },
+  { skin: 0xffc8a8, hair: 0xd8e6df, outfit: 0xddeee8, accent: 0x384553, shoe: 0xffffff, blush: 0xff9f9f, materialTone: 'soft' },
+  { skin: 0xffc39f, hair: 0x15110f, outfit: 0xffffff, accent: 0x4ca3ee, shoe: 0xbec4c8, blush: 0xff9292 },
   { skin: 0xffd6ba, hair: 0xf7f3d8, outfit: 0x9be7ff, accent: 0xffffff, shoe: 0x65c7f7, blush: 0xffa4bd, materialTone: 'silky' },
-  { skin: 0xffc7a6, hair: 0x3b2418, outfit: 0xff87b7, accent: 0xffd1e1, shoe: 0xff5a76, blush: 0xff8ca8, materialTone: 'silky' },
+  { skin: 0xffc7a6, hair: 0xff8fb3, outfit: 0xff87b7, accent: 0xffd447, shoe: 0x9c4b32, blush: 0xff8ca8, materialTone: 'silky' },
   { skin: 0xffc29e, hair: 0x1f1a18, outfit: 0x264a8f, accent: 0xffd447, shoe: 0x17263a, blush: 0xff918f, materialTone: 'uniform' }
 ];
 
@@ -54,10 +54,13 @@ export class ThreeTechPreview {
   private readonly environment = new THREE.Group();
   private readonly actors: LobbyActor[] = [];
   private readonly floorGlows: THREE.Mesh[] = [];
+  private readonly runRoadDashes: THREE.Mesh[] = [];
+  private readonly runSpeedMarks: THREE.Mesh[] = [];
   private runner?: RunnerState;
-  private currentScreen = document.body.dataset.runCoolScreen ?? '';
+  private currentScreen = document.body.dataset.runCoolScreen ?? 'character-lobby';
   private activeEnvironment = '';
   private runnerGameState = 'setup';
+  private runnerRenderMode = 'three-3d';
   private selectedIndex = Number(document.body.dataset.runCoolCharacterIndex ?? 0);
   private frameId = 0;
   private disposed = false;
@@ -170,22 +173,30 @@ export class ThreeTechPreview {
     const hairMaterial = this.createActorMaterial(style.hair, style);
     const shoeMaterial = this.createActorMaterial(style.shoe, style);
 
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.44, 12, 24), bodyMaterial);
-    torso.position.y = 0.9;
+    const torsoRadius = index === 0 ? 0.31 : index === 4 ? 0.27 : 0.28;
+    const torsoLength = index === 0 ? 0.34 : index === 3 ? 0.38 : 0.44;
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(torsoRadius, torsoLength, 12, 24), bodyMaterial);
+    torso.position.y = index === 0 ? 0.82 : 0.9;
     body.add(torso);
 
-    head.add(new THREE.Mesh(new THREE.SphereGeometry(0.32, 32, 24), skinMaterial));
-    head.position.y = 1.48;
+    const headRadius = index === 0 ? 0.36 : index === 2 ? 0.31 : 0.32;
+    head.add(new THREE.Mesh(new THREE.SphereGeometry(headRadius, 32, 24), skinMaterial));
+    head.position.y = index === 0 ? 1.36 : 1.48;
     body.add(head);
 
     this.addFace(head, style);
     this.addHair(head, index, hairMaterial);
-    this.addLimb(body, leftArm, skinMaterial, -0.34, 1.05, 0.09, 0.36);
-    this.addLimb(body, rightArm, skinMaterial, 0.34, 1.05, 0.09, 0.36);
-    this.addLimb(body, leftLeg, bodyMaterial, -0.14, 0.48, 0.1, 0.42);
-    this.addLimb(body, rightLeg, bodyMaterial, 0.14, 0.48, 0.1, 0.42);
+    this.addLimb(body, leftArm, skinMaterial, -0.34, index === 0 ? 0.96 : 1.05, index === 0 ? 0.1 : 0.09, index === 0 ? 0.28 : 0.36);
+    this.addLimb(body, rightArm, skinMaterial, 0.34, index === 0 ? 0.96 : 1.05, index === 0 ? 0.1 : 0.09, index === 0 ? 0.28 : 0.36);
+    this.addLimb(body, leftLeg, bodyMaterial, -0.14, index === 0 ? 0.5 : 0.48, 0.1, index === 0 ? 0.28 : 0.42);
+    this.addLimb(body, rightLeg, bodyMaterial, 0.14, index === 0 ? 0.5 : 0.48, 0.1, index === 0 ? 0.28 : 0.42);
     this.addShoe(leftLeg, shoeMaterial);
     this.addShoe(rightLeg, shoeMaterial);
+
+    if (index === 0) {
+      body.scale.set(1.05, 0.92, 1);
+      body.rotation.x = -0.08;
+    }
 
     root.add(body);
     this.addCharacterCostume(root, body, index, style);
@@ -216,12 +227,21 @@ export class ThreeTechPreview {
     head.add(hairCap);
 
     if (index === 1) {
+      const sideLeft = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 12), material);
+      sideLeft.position.set(-0.27, -0.02, 0.03);
+      sideLeft.scale.set(0.72, 1.28, 0.6);
+      const sideRight = sideLeft.clone();
+      sideRight.position.x = 0.27;
       for (let i = 0; i < 5; i += 1) {
         const bang = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), material);
         bang.position.set(-0.16 + i * 0.08, -0.02, 0.27);
         bang.scale.set(0.9, 1.2, 0.42);
         head.add(bang);
       }
+      const roundedFringe = new THREE.Mesh(new THREE.CapsuleGeometry(0.036, 0.42, 7, 10), material);
+      roundedFringe.position.set(0, 0.03, 0.29);
+      roundedFringe.rotation.z = Math.PI / 2;
+      head.add(sideLeft, sideRight, roundedFringe);
       return;
     }
 
@@ -229,27 +249,36 @@ export class ThreeTechPreview {
       const braid = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.45, 8, 14), material);
       braid.position.set(0.28, -0.2, -0.02);
       braid.rotation.z = -0.35;
-      head.add(braid);
+      const braidTip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 10), material);
+      braidTip.position.set(0.36, -0.44, 0.01);
+      const wave = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.025, 8, 24, Math.PI), material);
+      wave.position.set(-0.04, 0.23, 0.13);
+      wave.rotation.z = Math.PI;
+      head.add(braid, braidTip, wave);
       return;
     }
 
     if (index === 3) {
-      const bowMaterial = this.createActorMaterial(0xffd1e1, ACTOR_STYLES[3]);
-      const leftBow = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.18, 3), bowMaterial);
-      leftBow.position.set(-0.11, 0.24, 0.12);
-      leftBow.rotation.z = -Math.PI / 2;
-      const rightBow = leftBow.clone();
-      rightBow.position.x = 0.11;
-      rightBow.rotation.z = Math.PI / 2;
-      head.add(leftBow, rightBow);
+      const braidMaterial = this.createActorMaterial(0xff9fbe, ACTOR_STYLES[3]);
+      [-0.28, 0.28].forEach((x, side) => {
+        const braid = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.46, 8, 14), braidMaterial);
+        braid.position.set(x, -0.23, 0.05);
+        braid.rotation.z = side === 0 ? 0.22 : -0.22;
+        const tie = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), this.createActorMaterial(0x8fdc72, ACTOR_STYLES[3]));
+        tie.position.set(x + (side === 0 ? -0.04 : 0.04), -0.48, 0.08);
+        head.add(braid, tie);
+      });
       return;
     }
 
     if (index === 0) {
-      const curl = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.016, 8, 24), material);
-      curl.position.set(-0.04, 0.27, 0.07);
-      curl.rotation.z = 0.35;
-      head.add(curl);
+      const hoodBand = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.58, 8, 14), this.createActorMaterial(0xc9d8d2, ACTOR_STYLES[0]));
+      hoodBand.position.set(0, 0.19, 0.13);
+      hoodBand.rotation.z = Math.PI / 2;
+      const chinTie = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.26, 5, 8), this.createActorMaterial(0xc9d8d2, ACTOR_STYLES[0]));
+      chinTie.position.set(0.08, -0.34, 0.24);
+      chinTie.rotation.z = -0.35;
+      head.add(hoodBand, chinTie);
     }
   }
 
@@ -278,49 +307,90 @@ export class ThreeTechPreview {
 
   private addCharacterCostume(root: THREE.Group, body: THREE.Group, index: number, style: ActorStyle): void {
     if (index === 0) {
+      const vestMaterial = this.createActorMaterial(0xd7c99a, style);
+      const vest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.48, 0.12), vestMaterial);
+      vest.position.set(0, 0.89, 0.25);
+      vest.scale.set(1, 1, 0.72);
+      const zipper = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.43, 4, 8), this.createActorMaterial(0xffffff, style));
+      zipper.position.set(0, 0.89, 0.33);
       const diaper = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 14), this.createActorMaterial(0xffffff, style));
       diaper.position.set(0, 0.58, 0.02);
       diaper.scale.set(1.25, 0.55, 0.8);
+      const goggleFrame = new THREE.Mesh(new THREE.TorusGeometry(0.094, 0.018, 8, 22), this.createActorMaterial(0xf0f1ee, style));
+      goggleFrame.position.set(-0.11, 1.68, 0.25);
+      goggleFrame.scale.set(1.18, 0.78, 0.2);
+      const goggleRight = goggleFrame.clone();
+      goggleRight.position.x = 0.11;
+      const bridge = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.08, 4, 8), this.createActorMaterial(0x444d55, style));
+      bridge.position.set(0, 1.68, 0.26);
+      bridge.rotation.z = Math.PI / 2;
+      const lensMaterial = new THREE.MeshBasicMaterial({ color: 0x2f3e4c, transparent: true, opacity: 0.58 });
+      const lensLeft = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 10), lensMaterial);
+      lensLeft.position.set(-0.11, 1.68, 0.26);
+      lensLeft.scale.set(1.25, 0.72, 0.12);
+      const lensRight = lensLeft.clone();
+      lensRight.position.x = 0.11;
       const pacifier = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.014, 8, 18), new THREE.MeshBasicMaterial({ color: 0x65c7f7 }));
       pacifier.position.set(0, 1.43, 0.31);
-      body.add(diaper, pacifier);
+      body.add(vest, zipper, diaper, goggleFrame, goggleRight, bridge, lensLeft, lensRight, pacifier);
       return;
     }
 
     if (index === 1) {
       const strapMaterial = this.createActorMaterial(0x1f5ea8, style);
+      const bib = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.34, 0.08), strapMaterial);
+      bib.position.set(0, 0.92, 0.31);
+      const leftPocket = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.06), this.createActorMaterial(0x66b7f4, style));
+      leftPocket.position.set(-0.08, 0.78, 0.35);
+      const rightPocket = leftPocket.clone();
+      rightPocket.position.x = 0.08;
       const leftStrap = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.42, 6, 10), strapMaterial);
       leftStrap.position.set(-0.11, 1.02, 0.27);
       leftStrap.rotation.z = -0.12;
       const rightStrap = leftStrap.clone();
       rightStrap.position.x = 0.11;
       rightStrap.rotation.z = 0.12;
-      const star = new THREE.Mesh(new THREE.TetrahedronGeometry(0.09, 0), this.createActorMaterial(style.accent, style));
-      star.position.set(0, 1.1, 0.31);
+      const catPrint = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 10), this.createActorMaterial(0x79c9f3, style));
+      catPrint.position.set(0, 1.12, 0.32);
+      catPrint.scale.set(1.35, 0.8, 0.18);
+      const star = new THREE.Mesh(new THREE.TetrahedronGeometry(0.055, 0), this.createActorMaterial(0xffd447, style));
+      star.position.set(0.12, 1.13, 0.36);
       star.rotation.set(0.3, 0.2, 0.8);
-      body.add(leftStrap, rightStrap, star);
+      body.add(bib, leftPocket, rightPocket, leftStrap, rightStrap, catPrint, star);
       this.addSwingProp(root, style);
       return;
     }
 
     if (index === 2) {
       this.addSkirt(body, 0x9be7ff, style, 0.45, 0.46);
+      const bodice = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.08), this.createActorMaterial(0x7fd8ff, style));
+      bodice.position.set(0, 1.02, 0.31);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), this.createActorMaterial(0x2fb9ff, style));
+      gem.position.set(0, 1.16, 0.37);
       const cape = new THREE.Mesh(
         new THREE.ConeGeometry(0.42, 0.78, 18, 1, true),
         new THREE.MeshStandardMaterial({ color: 0xcff6ff, transparent: true, opacity: 0.62, roughness: 0.34 })
       );
       cape.position.set(0, 0.83, -0.18);
       cape.rotation.y = Math.PI / 18;
-      body.add(cape);
+      const snowflake = this.createSnowflake(0.15);
+      snowflake.position.set(0.18, 0.83, 0.34);
+      body.add(bodice, gem, cape, snowflake);
       this.addCrown(body, style);
       return;
     }
 
     if (index === 3) {
       this.addSkirt(body, style.outfit, style, 0.48, 0.42);
+      this.addPuddingHat(body, style);
+      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.035, 8, 24, Math.PI), this.createActorMaterial(0x8fdc72, style));
+      collar.position.set(0, 1.17, 0.27);
+      collar.rotation.z = Math.PI;
       const pendant = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), this.createActorMaterial(0xffd447, style));
       pendant.position.set(0, 1.12, 0.31);
-      body.add(pendant);
+      const flower = this.createFlowerPatch(0.07);
+      flower.position.set(0.12, 0.72, 0.34);
+      body.add(collar, pendant, flower);
       return;
     }
 
@@ -331,7 +401,23 @@ export class ThreeTechPreview {
     visor.scale.set(1.7, 0.22, 0.65);
     const badge = new THREE.Mesh(new THREE.OctahedronGeometry(0.065, 0), this.createActorMaterial(style.accent, style));
     badge.position.set(0, 1.12, 0.31);
-    body.add(cap, visor, badge);
+    const jacketPanel = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.48, 0.08), this.createActorMaterial(0x1c396f, style));
+    jacketPanel.position.set(0, 0.88, 0.31);
+    const wingLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.045, 0.04), this.createActorMaterial(0xffd447, style));
+    wingLeft.position.set(-0.12, 1.16, 0.36);
+    wingLeft.rotation.z = -0.18;
+    const wingRight = wingLeft.clone();
+    wingRight.position.x = 0.12;
+    wingRight.rotation.z = 0.18;
+    const leftEpaulet = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.08), this.createActorMaterial(0xffd447, style));
+    leftEpaulet.position.set(-0.25, 1.18, 0.18);
+    leftEpaulet.rotation.z = 0.18;
+    const rightEpaulet = leftEpaulet.clone();
+    rightEpaulet.position.x = 0.25;
+    rightEpaulet.rotation.z = -0.18;
+    const capBadge = new THREE.Mesh(new THREE.OctahedronGeometry(0.045, 0), this.createActorMaterial(0xffd447, style));
+    capBadge.position.set(0, 1.85, 0.18);
+    body.add(cap, visor, capBadge, jacketPanel, wingLeft, wingRight, leftEpaulet, rightEpaulet, badge);
   }
 
   private addSkirt(body: THREE.Group, color: number, style: ActorStyle, radius: number, height: number): void {
@@ -349,6 +435,47 @@ export class ThreeTechPreview {
       spike.rotation.y = Math.PI / 4;
       body.add(spike);
     }
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), this.createActorMaterial(0x38c6ff, style));
+    gem.position.set(0, 1.92, 0.1);
+    body.add(gem);
+  }
+
+  private addPuddingHat(body: THREE.Group, style: ActorStyle): void {
+    const brim = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.035, 10, 32), this.createActorMaterial(0xffd447, style));
+    brim.position.set(0, 1.86, 0.03);
+    brim.scale.set(1.15, 0.58, 0.18);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 28), this.createActorMaterial(0xffd447, style));
+    cone.position.set(0.02, 2.08, 0.02);
+    cone.rotation.z = -0.18;
+    const ribbon = new THREE.Mesh(new THREE.CapsuleGeometry(0.025, 0.38, 6, 10), this.createActorMaterial(0xff87b7, style));
+    ribbon.position.set(0, 1.94, 0.16);
+    ribbon.rotation.z = Math.PI / 2;
+    body.add(brim, cone, ribbon);
+  }
+
+  private createSnowflake(radius: number): THREE.Group {
+    const snowflake = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    for (let i = 0; i < 6; i += 1) {
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.007, radius, 4, 6), material);
+      arm.rotation.z = (Math.PI / 6) * i;
+      snowflake.add(arm);
+    }
+    return snowflake;
+  }
+
+  private createFlowerPatch(scale: number): THREE.Group {
+    const flower = new THREE.Group();
+    const center = new THREE.Mesh(new THREE.SphereGeometry(scale * 0.48, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd447 }));
+    flower.add(center);
+    [0, 1, 2, 3, 4].forEach((i) => {
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(scale * 0.42, 10, 8), new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xffffff : 0xfff1a8 }));
+      const angle = (Math.PI * 2 * i) / 5;
+      petal.position.set(Math.cos(angle) * scale * 0.6, Math.sin(angle) * scale * 0.6, 0.01);
+      petal.scale.set(1, 0.74, 0.16);
+      flower.add(petal);
+    });
+    return flower;
   }
 
   private addSwingProp(root: THREE.Group, style: ActorStyle): void {
@@ -399,7 +526,7 @@ export class ThreeTechPreview {
   };
 
   private readonly handleRunnerStateEvent = (event: Event): void => {
-    const detail = (event as CustomEvent<{ characterIndex?: number; lane?: number; pose?: RunnerPose; state?: string }>).detail;
+    const detail = (event as CustomEvent<{ characterIndex?: number; lane?: number; pose?: RunnerPose; renderMode?: string; state?: string }>).detail;
     if (!this.runner) {
       return;
     }
@@ -421,6 +548,9 @@ export class ThreeTechPreview {
     if (detail?.state === 'paused' || detail?.state === 'running' || detail?.state === 'ended') {
       this.runnerGameState = detail.state;
     }
+    if (detail?.renderMode) {
+      this.runnerRenderMode = detail.renderMode;
+    }
     this.applyScreenVisibility();
   };
 
@@ -437,6 +567,7 @@ export class ThreeTechPreview {
       glow.scale.setScalar((selected ? 0.82 : 0.58) + Math.sin(elapsed * 3.2 + index) * 0.025);
     });
     this.updateRunner(delta, elapsed);
+    this.updateRunRoadMotion(elapsed);
     this.renderer.render(this.scene, this.camera);
     this.frameId = requestAnimationFrame(this.animate);
   };
@@ -474,17 +605,17 @@ export class ThreeTechPreview {
     const stride = Math.sin(elapsed * 13);
     const counterStride = Math.cos(elapsed * 13);
     const baseScale = this.getRunnerScale(this.selectedIndex);
-    const jumpArc = runner.pose === 'jump' ? Math.sin(Math.min(1, poseElapsed / 0.62) * Math.PI) * 0.58 : 0;
+    const jumpArc = runner.pose === 'jump' ? Math.sin(Math.min(1, poseElapsed / 0.62) * Math.PI) * 0.42 : 0;
     const slideSquash = runner.pose === 'slide' ? 0.66 : 1;
     const slideLean = runner.pose === 'slide' ? -0.32 : 0;
-    const runBob = runner.pose === 'run' ? Math.abs(stride) * 0.045 : 0;
+    const runBob = runner.pose === 'run' ? Math.abs(stride) * 0.032 : 0;
 
-    runner.rig.root.visible = this.currentScreen === 'running' && this.runnerGameState === 'running';
-    runner.rig.root.position.set(laneX, 0.2 + jumpArc + runBob, 0.06);
-    runner.rig.root.rotation.y = THREE.MathUtils.damp(runner.rig.root.rotation.y, (runner.targetLane - 1) * -0.16, 8, delta);
+    runner.rig.root.visible = this.currentScreen === 'running' && this.runnerGameState === 'running' && this.runnerRenderMode !== 'layered-2d';
+    runner.rig.root.position.set(laneX, 0.02 + jumpArc + runBob, 0.08);
+    runner.rig.root.rotation.y = THREE.MathUtils.damp(runner.rig.root.rotation.y, (runner.targetLane - 1) * -0.08, 8, delta);
     runner.rig.root.rotation.x = THREE.MathUtils.damp(runner.rig.root.rotation.x, slideLean, 10, delta);
     runner.rig.root.rotation.z = THREE.MathUtils.damp(runner.rig.root.rotation.z, runner.pose === 'jump' ? Math.sin(poseElapsed * 8) * 0.08 : 0, 8, delta);
-    runner.rig.root.scale.set(baseScale * (1 + Math.abs(stride) * 0.018), baseScale * slideSquash * (1 + Math.abs(stride) * 0.026), baseScale);
+    runner.rig.root.scale.set(baseScale * (1 + Math.abs(stride) * 0.012), baseScale * slideSquash * (1 + Math.abs(stride) * 0.018), baseScale);
 
     if (runner.pose === 'slide') {
       runner.rig.leftArm.rotation.x = -0.65;
@@ -499,6 +630,29 @@ export class ThreeTechPreview {
     runner.rig.leftLeg.rotation.x = stride * 0.9;
     runner.rig.rightLeg.rotation.x = -stride * 0.9;
     runner.rig.head.rotation.z = counterStride * 0.025;
+  }
+
+  private updateRunRoadMotion(elapsed: number): void {
+    if (this.activeEnvironment !== 'run') {
+      return;
+    }
+
+    this.runRoadDashes.forEach((dash, index) => {
+      const y = -0.12 + ((elapsed * 1.28 + index * 0.34) % 3.0);
+      const t = clamp((y + 0.12) / 3.0, 0, 1);
+      dash.position.y = y;
+      dash.scale.set(1.15 - t * 0.78, 1, 1);
+      (dash.material as THREE.MeshBasicMaterial).opacity = 0.44 - t * 0.26;
+    });
+
+    this.runSpeedMarks.forEach((mark, index) => {
+      const y = -0.02 + ((elapsed * 2.05 + index * 0.48) % 2.9);
+      const side = index % 2 === 0 ? -1 : 1;
+      const t = clamp((y + 0.02) / 2.9, 0, 1);
+      mark.position.set(side * (1.55 - t * 0.64), y, -0.03);
+      mark.scale.set(1.32 - t * 0.62, 1, 1);
+      (mark.material as THREE.MeshBasicMaterial).opacity = 0.28 - t * 0.18;
+    });
   }
 
   private poseStandingIdle(rig: CharacterRig, elapsed: number, selected: boolean): void {
@@ -539,6 +693,7 @@ export class ThreeTechPreview {
     const mapVisible = this.currentScreen === 'map-select';
     const runSceneVisible = this.currentScreen === 'running';
     const runningVisible = runSceneVisible && this.runnerGameState === 'running';
+    const threeRunnerVisible = runningVisible && this.runnerRenderMode !== 'layered-2d';
     this.updateEnvironment();
     this.host.classList.toggle('is-visible', lobbyVisible || mapVisible || runSceneVisible);
     this.host.classList.toggle('is-lobby', lobbyVisible);
@@ -551,7 +706,7 @@ export class ThreeTechPreview {
       glow.visible = lobbyVisible;
     });
     if (this.runner) {
-      this.runner.rig.root.visible = runningVisible;
+      this.runner.rig.root.visible = threeRunnerVisible;
     }
   }
 
@@ -586,6 +741,8 @@ export class ThreeTechPreview {
 
     this.activeEnvironment = nextEnvironment;
     this.environment.clear();
+    this.runRoadDashes.length = 0;
+    this.runSpeedMarks.length = 0;
     if (nextEnvironment === 'map') {
       this.buildMapEnvironment();
       return;
@@ -671,12 +828,8 @@ export class ThreeTechPreview {
   }
 
   private buildRunEnvironment(): void {
-    this.renderer.setClearColor(0x65c7f7, 1);
-    this.environment.add(this.createCloud(1.12, 2.62, 0.52));
-    this.addGroundBand(0x5dbf68, -0.05, 0.42);
+    this.renderer.setClearColor(0x263845, 1);
     this.addRunRoad();
-    this.addTree(-1.9, 0.35, 0.48);
-    this.addTree(1.9, 0.35, 0.48);
   }
 
   private addSkyDecor(): void {
@@ -723,30 +876,53 @@ export class ThreeTechPreview {
 
   private addRunRoad(): void {
     const roadShape = new THREE.Shape();
-    roadShape.moveTo(-1.35, -0.05);
-    roadShape.lineTo(1.35, -0.05);
-    roadShape.lineTo(0.72, 2.46);
-    roadShape.lineTo(-0.72, 2.46);
+    roadShape.moveTo(-3.2, -0.28);
+    roadShape.lineTo(3.2, -0.28);
+    roadShape.lineTo(0.84, 3.12);
+    roadShape.lineTo(-0.84, 3.12);
     roadShape.closePath();
-    const road = new THREE.Mesh(new THREE.ShapeGeometry(roadShape), this.createMat(0x263845, 0.58));
-    road.position.z = -0.2;
+    const road = new THREE.Mesh(new THREE.ShapeGeometry(roadShape), this.createMat(0x263845, 0.62));
+    road.position.z = -0.22;
     this.environment.add(road);
 
-    const center = new THREE.Mesh(new THREE.BoxGeometry(0.58, 2.55, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 }));
-    center.position.set(0, 1.18, -0.14);
-    this.environment.add(center);
+    const roadGlow = new THREE.Mesh(new THREE.ShapeGeometry(roadShape), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.035 }));
+    roadGlow.position.z = -0.18;
+    this.environment.add(roadGlow);
 
-    [-0.48, 0.48].forEach((x) => {
-      const lane = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.54, 0.04), new THREE.MeshBasicMaterial({ color: 0xdff2fb, transparent: true, opacity: 0.34 }));
-      lane.position.set(x, 1.18, -0.1);
-      lane.rotation.z = x < 0 ? -0.08 : 0.08;
+    const shoulderMaterial = new THREE.MeshBasicMaterial({ color: 0xffd447, transparent: true, opacity: 0.42 });
+    [-1, 1].forEach((side) => {
+      const shoulder = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 3.65, 6, 12), shoulderMaterial);
+      shoulder.position.set(side * 1.34, 1.35, -0.08);
+      shoulder.rotation.z = side * 0.54;
+      this.environment.add(shoulder);
+    });
+
+    [-1, 1].forEach((side) => {
+      const lane = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 3.55, 6, 12), new THREE.MeshBasicMaterial({ color: 0xdff2fb, transparent: true, opacity: 0.36 }));
+      lane.position.set(side * 0.45, 1.35, -0.06);
+      lane.rotation.z = side * 0.25;
       this.environment.add(lane);
     });
 
-    for (let y = 0.18; y < 2.35; y += 0.42) {
-      const dash = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.035, 0.04), new THREE.MeshBasicMaterial({ color: 0xdff2fb, transparent: true, opacity: 0.24 }));
-      dash.position.set(0, y, -0.08);
+    [-0.9, 0, 0.9].forEach((x) => {
+      const laneBand = new THREE.Mesh(new THREE.BoxGeometry(0.72, 3.7, 0.03), new THREE.MeshBasicMaterial({ color: x === 0 ? 0xffffff : 0x000000, transparent: true, opacity: x === 0 ? 0.025 : 0.035 }));
+      laneBand.position.set(x, 1.35, -0.17);
+      laneBand.rotation.z = x < 0 ? -0.16 : x > 0 ? 0.16 : 0;
+      this.environment.add(laneBand);
+    });
+
+    for (let i = 0; i < 9; i += 1) {
+      const dash = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0xdff2fb, transparent: true, opacity: 0.3 }));
+      dash.position.set(0, 0.04 + i * 0.31, -0.04);
+      this.runRoadDashes.push(dash);
       this.environment.add(dash);
+    }
+
+    for (let i = 0; i < 10; i += 1) {
+      const mark = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.026, 0.03), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24 }));
+      mark.rotation.z = i % 2 === 0 ? -0.18 : 0.18;
+      this.runSpeedMarks.push(mark);
+      this.environment.add(mark);
     }
   }
 
@@ -800,25 +976,25 @@ export class ThreeTechPreview {
 
   private getLobbyHomes(): THREE.Vector3[] {
     return [
-      new THREE.Vector3(-0.98, 0.56, 0),
-      new THREE.Vector3(-0.55, 1.12, 0),
-      new THREE.Vector3(0, 1.4, 0),
-      new THREE.Vector3(0.55, 1.1, 0),
-      new THREE.Vector3(0.98, 0.56, 0)
+      new THREE.Vector3(-1.18, 0.96, 0),
+      new THREE.Vector3(-0.7, 1.08, 0),
+      new THREE.Vector3(0, 1.42, 0),
+      new THREE.Vector3(0.72, 1.04, 0),
+      new THREE.Vector3(1.18, 0.96, 0)
     ];
   }
 
   private getActorScale(index: number, selected: boolean): number {
-    const base = [0.43, 0.37, 0.42, 0.38, 0.43][index] ?? 0.4;
-    return selected ? base * 1.14 : base;
+    const base = [0.29, 0.27, 0.3, 0.28, 0.3][index] ?? 0.29;
+    return selected ? base * 1.08 : base;
   }
 
   private getRunnerLaneX(lane: number): number {
-    return THREE.MathUtils.lerp(-0.72, 0.72, clamp(lane, 0, 2) / 2);
+    return THREE.MathUtils.lerp(-0.54, 0.54, clamp(lane, 0, 2) / 2);
   }
 
   private getRunnerScale(index: number): number {
-    return [0.56, 0.5, 0.56, 0.52, 0.58][index] ?? 0.54;
+    return [0.28, 0.27, 0.29, 0.28, 0.3][index] ?? 0.28;
   }
 }
 

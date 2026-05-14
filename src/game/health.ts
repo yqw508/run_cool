@@ -7,10 +7,11 @@ export type HealthState = {
 export const DEFAULT_MAX_HEALTH = 3;
 export const DAMAGE_INVULNERABLE_MS = 1000;
 
-export function createHealthState(max = DEFAULT_MAX_HEALTH): HealthState {
+export function createHealthState(max = DEFAULT_MAX_HEALTH, current = max): HealthState {
+  const safeMax = Math.max(1, max);
   return {
-    current: max,
-    max,
+    current: Math.max(0, Math.min(current, safeMax)),
+    max: safeMax,
     invulnerableUntil: 0
   };
 }
