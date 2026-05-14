@@ -985,7 +985,7 @@ export class ThreeTechPreview {
   }
 
   private getActorScale(index: number, selected: boolean): number {
-    const base = [0.29, 0.27, 0.3, 0.28, 0.3][index] ?? 0.29;
+    const base = [0.58, 0.52, 0.68, 0.55, 0.60][index] ?? 0.58;
     return selected ? base * 1.08 : base;
   }
 

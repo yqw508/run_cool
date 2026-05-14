@@ -523,21 +523,20 @@ export class RunnerScene extends Phaser.Scene {
   private addLobbyCharacter(preset: CharacterPreset, index: number): void {
     const selected = index === this.selectedCharacterIndex;
     const spots = [
-      { x: 62, y: 488, scale: 0.42 },
-      { x: 106, y: 370, scale: 0.4 },
-      { x: 198, y: 328, scale: 0.46 },
-      { x: 294, y: 394, scale: 0.4 },
-      { x: 326, y: 488, scale: 0.42 }
+      { x: 72, y: 480, scale: 0.72 },
+      { x: 100, y: 340, scale: 0.65 },
+      { x: 195, y: 300, scale: 0.85 },
+      { x: 290, y: 340, scale: 0.65 },
+      { x: 318, y: 480, scale: 0.72 }
     ];
     const homeSpot = spots[index];
-    const selectedScale = homeSpot.scale * 1.2;
+    const selectedScale = homeSpot.scale * 1.08;
     const character = this.add
       .container(homeSpot.x, homeSpot.y)
       .setScale(selected ? selectedScale : homeSpot.scale)
       .setAlpha(selected ? 1 : 0.82)
       .setDepth(selected ? 14 : 4 + Math.round(homeSpot.y / 10));
 
-    character.add(this.add.ellipse(0, 38, 110, 26, 0x000000, selected ? 0.16 : 0.07));
     if (ENABLE_3D_LOBBY_CHARACTERS) {
       // 3D lobby actors are rendered by ThreeTechPreview; Phaser keeps click zones and selection UI.
     } else {
@@ -545,7 +544,7 @@ export class RunnerScene extends Phaser.Scene {
     }
 
     if (selected) {
-      character.add(this.add.circle(0, -50, 68, 0xffd447, 0.1).setStrokeStyle(4, 0xffd447, 0.52).setDepth(-2));
+      character.add(this.add.circle(0, -64, 66, 0xffd447, 0.08).setStrokeStyle(4, 0xffd447, 0.46).setDepth(-2));
     }
     character.setInteractive(new Phaser.Geom.Rectangle(-58, -150, 116, 190), Phaser.Geom.Rectangle.Contains);
     character.on('pointerup', () => this.selectLobbyCharacter(index));
@@ -554,14 +553,14 @@ export class RunnerScene extends Phaser.Scene {
     if (selected) {
       this.tweens.add({
         targets: character,
-        scale: homeSpot.scale * 1.28,
-        duration: 190,
+        scale: homeSpot.scale * 1.14,
+        duration: 220,
         ease: 'Back.easeOut'
       });
       this.tweens.add({
         targets: character,
-        y: homeSpot.y - 6,
-        duration: 980,
+        y: homeSpot.y - 4,
+        duration: 1500,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
@@ -628,133 +627,54 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawLobbyImageScene(character: Phaser.GameObjects.Container, preset: CharacterPreset): void {
-    if (preset.id === 'little-star') {
-      const swing = this.add.container(0, -8);
-      const shadow = this.add.ellipse(0, 42, 92, 18, 0x000000, 0.12);
-      character.add(shadow);
-      swing.add(this.add.line(0, 0, -42, -112, -24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
-      swing.add(this.add.line(0, 0, 42, -112, 24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
-      swing.add(this.add.rectangle(0, 32, 86, 10, 0xffd447).setStrokeStyle(2, 0x8c5a2b));
-      this.drawLayeredLobbyRig(swing, preset, 112, 168, 36, shadow);
-      character.add(swing);
-      this.tweens.add({ targets: swing, angle: { from: -8, to: 8 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return;
-    }
-
-    const shadow = this.add.ellipse(0, 40, preset.id === 'baby-brother' ? 100 : 82, 18, 0x000000, 0.12);
+    const size = this.getLobbySpriteSize(preset);
+    const shadow = this.add.ellipse(0, 38, size.shadowWidth, 18, 0x000000, 0.1).setDepth(-1);
+    const sprite = this.add.image(0, 34, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(size.width, size.height);
+    const actor = this.add.container(0, 0);
+    actor.add(sprite);
     character.add(shadow);
-    const displayHeight = preset.id === 'baby-brother' ? 122 : 168;
-    const displayWidth = preset.id === 'baby-brother' ? 130 : 118;
-    const rig = this.drawLayeredLobbyRig(character, preset, displayWidth, displayHeight, 36, shadow);
+    character.add(actor);
 
-    if (preset.id === 'baby-brother') {
-      this.tweens.add({ targets: rig, x: 8, angle: -3, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return;
-    }
-
-    if (preset.id === 'ice-princess') {
+    if (preset.id === 'ice-princess' || preset.id === 'pudding') {
       for (let i = 0; i < 4; i += 1) {
-        const sparkle = this.add.star(-44 + i * 30, -86 + (i % 2) * 22, 4, 2, 6, 0xffffff, 0.94);
+        const sparkle = this.add.star(-44 + i * 30, -82 + (i % 2) * 22, 4, 2, 6, 0xffffff, 0.86);
         character.add(sparkle);
-        this.tweens.add({ targets: sparkle, alpha: 0.25, scale: 1.5, duration: 620 + i * 120, yoyo: true, repeat: -1 });
+        this.tweens.add({ targets: sparkle, alpha: 0.24, scale: 1.35, duration: 900 + i * 140, yoyo: true, repeat: -1 });
       }
-      return;
     }
 
-    if (preset.id === 'pudding') {
-      this.tweens.add({ targets: rig, angle: { from: -2.5, to: 2.5 }, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return;
-    }
-
-    this.tweens.add({ targets: rig, y: -4, duration: 1120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const idle = this.getLobbyIdleMotion(preset);
+    this.tweens.add({ targets: actor, y: idle.y, angle: idle.angle, duration: idle.duration, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: shadow, scaleX: 0.94, alpha: 0.07, duration: idle.duration, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 
-  private drawLayeredLobbyRig(
-    parent: Phaser.GameObjects.Container,
-    preset: CharacterPreset,
-    displayWidth: number,
-    displayHeight: number,
-    bottomY: number,
-    shadow: Phaser.GameObjects.Ellipse
-  ): Phaser.GameObjects.Container {
-    const rig = this.add.container(0, 0);
-    const texture = this.textures.get(preset.lobbyAssetKey);
-    const source = texture.getSourceImage() as { width: number; height: number };
-    const sourceWidth = source.width;
-    const sourceHeight = source.height;
-    const base = this.add.image(0, bottomY, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(displayWidth, displayHeight);
-    rig.add(base);
-
-    const addBand = (name: string, yRatio: number, heightRatio: number, width = displayWidth, heightScale = 1) => {
-      const part = this.add
-        .image(0, bottomY, preset.lobbyAssetKey)
-        .setOrigin(0.5, 1)
-        .setCrop(0, sourceHeight * yRatio, sourceWidth, sourceHeight * heightRatio)
-        .setDisplaySize(width, displayHeight * heightScale)
-        .setAlpha(0.68);
-      part.setName(name);
-      rig.add(part);
-      return part;
-    };
-
+  private getLobbySpriteSize(preset: CharacterPreset): { width: number; height: number; shadowWidth: number } {
     if (preset.id === 'baby-brother') {
-      const hands = addBand('baby-hands', 0.68, 0.32, displayWidth, 1.01);
-      rig.add(this.add.ellipse(0, bottomY - displayHeight * 0.05, displayWidth * 0.78, 18, 0xffffff, 0.13).setDepth(-1));
-      this.tweens.add({ targets: base, y: base.y - 4, angle: { from: -1.2, to: 1.2 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.tweens.add({ targets: base, scaleY: 1.025, duration: 820, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.tweens.add({ targets: hands, x: 5, angle: -2.5, duration: 620, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.addBreathingTween(base, shadow, 1080, 0.012);
-      parent.add(rig);
-      return rig;
+      return { width: 116, height: 112, shadowWidth: 86 };
     }
-
-    const lower = addBand('lower-body-overlay', 0.62, 0.38);
-    const head = addBand('head-overlay', 0, 0.38, displayWidth * 0.98, 1.01);
-
-    const chestLight = this.add.ellipse(0, bottomY - displayHeight * 0.52, displayWidth * 0.62, displayHeight * 0.12, 0xffffff, 0.1);
-    rig.add(chestLight);
-    this.tweens.add({ targets: base, scaleY: 1.018, y: base.y - 1, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: head, y: head.y - 1.5, angle: { from: -0.8, to: 0.8 }, duration: 1360, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: lower, angle: { from: -0.8, to: 0.8 }, duration: preset.id === 'pudding' ? 880 : 1280, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: shadow, scaleX: 1.08, alpha: 0.08, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-    if (preset.id === 'air-captain') {
-      const wing = this.add.container(38, bottomY - displayHeight * 0.58);
-      wing.add(this.add.rectangle(0, 0, 30, 8, preset.accentColor, 0.92).setStrokeStyle(1, 0xffffff, 0.75));
-      wing.add(this.add.triangle(16, 0, 0, -8, 0, 8, 20, 0, preset.accentColor));
-      rig.add(wing);
-      this.tweens.add({ targets: wing, angle: { from: -8, to: -24 }, y: wing.y - 6, duration: 920, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    if (preset.id === 'ice-princess') {
+      return { width: 104, height: 156, shadowWidth: 84 };
     }
-
-    parent.add(rig);
-    return rig;
+    if (preset.id === 'pudding') {
+      return { width: 112, height: 134, shadowWidth: 88 };
+    }
+    if (preset.id === 'little-star') {
+      return { width: 104, height: 148, shadowWidth: 78 };
+    }
+    return { width: 100, height: 146, shadowWidth: 78 };
   }
 
-  private addBreathingTween(
-    sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Container,
-    shadow: Phaser.GameObjects.Ellipse,
-    duration: number,
-    amount: number
-  ): void {
-    this.tweens.add({
-      targets: sprite,
-      scaleX: sprite.scaleX * (1 + amount),
-      scaleY: sprite.scaleY * (1 - amount * 0.7),
-      y: sprite.y - 3,
-      duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-    this.tweens.add({
-      targets: shadow,
-      scaleX: 1.08,
-      alpha: 0.08,
-      duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+  private getLobbyIdleMotion(preset: CharacterPreset): { y: number; angle: { from: number; to: number }; duration: number } {
+    if (preset.id === 'baby-brother') {
+      return { y: -3, angle: { from: -1.5, to: 1.5 }, duration: 1700 };
+    }
+    if (preset.id === 'air-captain') {
+      return { y: -4, angle: { from: -1, to: 1.2 }, duration: 1550 };
+    }
+    if (preset.id === 'pudding') {
+      return { y: -3, angle: { from: -1.2, to: 1.2 }, duration: 1650 };
+    }
+    return { y: -4, angle: { from: -0.8, to: 0.8 }, duration: 1800 };
   }
 
   private drawFrontCharacter(parent: Phaser.GameObjects.Container, preset: CharacterPreset, x: number, y: number, scale: number): void {
