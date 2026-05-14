@@ -1,3 +1,5 @@
+import { COLLECTIBLE_PRESETS, type CollectibleConfig } from './config';
+
 export type ThemeId = 'campus' | 'mall' | 'zoo' | 'amusement';
 
 export type LandmarkKind =
@@ -41,6 +43,7 @@ export type LevelTheme = {
   laneColor: number;
   titleColor: number;
   musicKey: string;
+  collectible: CollectibleConfig;
   landmarks: LandmarkKind[];
   obstacles: ThemeObstacle[];
 };
@@ -58,6 +61,7 @@ export const LEVEL_THEMES: LevelTheme[] = [
     laneColor: 0xffffff,
     titleColor: 0xffffff,
     musicKey: 'music-campus',
+    collectible: COLLECTIBLE_PRESETS.flower,
     landmarks: ['school', 'track', 'library'],
     obstacles: [
       { label: '栏杆', color: 0x2f80ed, accentColor: 0xffd447, shape: 'schoolRail' },
@@ -74,6 +78,7 @@ export const LEVEL_THEMES: LevelTheme[] = [
     laneColor: 0xfff1a8,
     titleColor: 0x17263a,
     musicKey: 'music-mall',
+    collectible: COLLECTIBLE_PRESETS.coin,
     landmarks: ['arcade', 'restaurant', 'cinema'],
     obstacles: [
       { label: '购物车', color: 0xff87b7, accentColor: 0xffffff, shape: 'cart' },
@@ -90,6 +95,7 @@ export const LEVEL_THEMES: LevelTheme[] = [
     laneColor: 0xf8fbff,
     titleColor: 0x17263a,
     musicKey: 'music-zoo',
+    collectible: COLLECTIBLE_PRESETS.leaf,
     landmarks: ['zooGate', 'animal', 'fence'],
     obstacles: [
       { label: '木栅栏', color: 0x9a6a38, accentColor: 0xffe2a8, shape: 'woodFence' },
@@ -106,6 +112,7 @@ export const LEVEL_THEMES: LevelTheme[] = [
     laneColor: 0xffffff,
     titleColor: 0x17263a,
     musicKey: 'music-amusement',
+    collectible: COLLECTIBLE_PRESETS.balloon,
     landmarks: ['ferrisWheel', 'rollerCoaster', 'carousel'],
     obstacles: [
       { label: '小拱门', color: 0x7a5cff, accentColor: 0xffffff, shape: 'parkGate' },

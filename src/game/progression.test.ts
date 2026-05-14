@@ -32,6 +32,10 @@ describe('progression helpers', () => {
     expect(getScore(12.4, 3)).toBe(42);
   });
 
+  it('scores configurable collectible values', () => {
+    expect(getScore(12.4, 3, 5)).toBe(27);
+  });
+
   it('keeps configured game height stable', () => {
     expect(GAME_HEIGHT).toBe(720);
   });

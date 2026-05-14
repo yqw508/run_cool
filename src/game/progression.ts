@@ -27,8 +27,8 @@ export function getSpawnDelay(elapsedMs: number): number {
   return Math.max(MIN_SPAWN_DELAY, delay);
 }
 
-export function getScore(distanceMeters: number, coins: number): number {
-  return Math.floor(distanceMeters) + coins * 10;
+export function getScore(distanceMeters: number, collectibles: number, collectibleScoreValue = 10): number {
+  return Math.floor(distanceMeters) + collectibles * collectibleScoreValue;
 }
 
 export function getRoadPerspectiveY(row: number): number {

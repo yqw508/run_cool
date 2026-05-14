@@ -1,6 +1,6 @@
 ﻿import Phaser from 'phaser';
 import { CHARACTER_PRESETS, DEFAULT_SELECTION, type CharacterPreset, type CharacterSelection, resolveSelection } from './characters';
-import { GAME_HEIGHT, GAME_WIDTH, JUMP_DURATION_MS, PLAYER_Y, SLIDE_DURATION_MS, type LaneIndex } from './config';
+import { GAME_HEIGHT, GAME_WIDTH, JUMP_DURATION_MS, PLAYER_Y, SLIDE_DURATION_MS, type CollectibleConfig, type LaneIndex } from './config';
 import { applyDamage, createHealthState, isDefeated, type HealthState } from './health';
 import { bindSwipeInput, type GestureDirection } from './input';
 import { getThemeForRunDistance, LEVEL_THEMES, type LevelTheme, type ThemeObstacle } from './levels';
@@ -18,8 +18,19 @@ type Obstacle = Phaser.GameObjects.Container & {
   damageHandled?: boolean;
 };
 
-type Collectible = Phaser.GameObjects.Star & {
+type Collectible = Phaser.GameObjects.Container & {
   body: Phaser.Physics.Arcade.Body;
+  collectibleId: string;
+};
+
+type LayeredBabyRig = {
+  head: Phaser.GameObjects.Container;
+  body: Phaser.GameObjects.Container;
+  leftArm: Phaser.GameObjects.Container;
+  rightArm: Phaser.GameObjects.Container;
+  leftLeg: Phaser.GameObjects.Container;
+  rightLeg: Phaser.GameObjects.Container;
+  pacifier: Phaser.GameObjects.Container;
 };
 
 const TEXT_STYLE = {
@@ -44,6 +55,7 @@ export class RunnerScene extends Phaser.Scene {
   private currentLane: LaneIndex = 1;
   private player!: Phaser.GameObjects.Container;
   private playerVisual?: Phaser.GameObjects.Container;
+  private layeredBabyRig?: LayeredBabyRig;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private obstacles!: Phaser.Physics.Arcade.Group;
   private collectibles!: Phaser.Physics.Arcade.Group;
@@ -55,8 +67,10 @@ export class RunnerScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private themeLabelText!: Phaser.GameObjects.Text;
   private healthText!: Phaser.GameObjects.Text;
+  private collectibleHudIcon!: Phaser.GameObjects.Container;
   private healthState: HealthState = createHealthState();
   private currentTheme: LevelTheme = LEVEL_THEMES[0];
+  private collectibleConfig: CollectibleConfig = this.currentTheme.collectible;
   private selectedThemeIndex = 0;
   private activeMusicKey = '';
   private audioContext?: AudioContext;
@@ -64,7 +78,7 @@ export class RunnerScene extends Phaser.Scene {
   private musicGain?: GainNode;
   private runStartedAt = 0;
   private distanceMeters = 0;
-  private stars = 0;
+  private collectiblesCollected = 0;
   private nextSpawnAt = 0;
   private pausedAt = 0;
   private hasSeenTutorial = false;
@@ -100,7 +114,7 @@ export class RunnerScene extends Phaser.Scene {
     this.createOverlayLayer();
     this.bindControls();
 
-    this.physics.add.overlap(this.player, this.collectibles, (_, star) => this.collectStar(star as Collectible));
+    this.physics.add.overlap(this.player, this.collectibles, (_, collectible) => this.collectItem(collectible as Collectible));
     this.physics.add.overlap(this.player, this.obstacles, (_, obstacle) => this.hitObstacle(obstacle as Obstacle));
     this.enterSetup();
   }
@@ -271,7 +285,7 @@ export class RunnerScene extends Phaser.Scene {
     scoreIcon.add(this.add.rectangle(0, 14, 10, 8, 0xffd447).setStrokeStyle(2, 0xffffff));
     scoreIcon.add(this.add.rectangle(0, 21, 24, 5, 0xffffff, 0.9));
 
-    const starIcon = this.add.star(96, 31, 5, 6, 13, 0xffd447).setStrokeStyle(2, 0xffffff);
+    this.collectibleHudIcon = this.createCollectibleIcon(96, 31, 0.72, this.collectibleConfig);
     this.scoreText = this.add.text(50, 18, '0', {
       ...TEXT_STYLE,
       color: '#ffffff',
@@ -304,13 +318,63 @@ export class RunnerScene extends Phaser.Scene {
     const pauseButton = this.createIconButton(GAME_WIDTH - 48, 34, 56, 36, 0xfff1a8, () => this.pauseRun());
     pauseButton.add(this.add.rectangle(-6, 0, 5, 18, 0x17263a));
     pauseButton.add(this.add.rectangle(6, 0, 5, 18, 0x17263a));
-    this.hudLayer.add([statsBg, scoreIcon, starIcon, this.scoreText, this.themeLabelText, this.healthText, gestureHint, pauseButton]);
+    this.hudLayer.add([statsBg, scoreIcon, this.collectibleHudIcon, this.scoreText, this.themeLabelText, this.healthText, gestureHint, pauseButton]);
   }
 
   private updateHud(): void {
-    this.scoreText.setText(`${getScore(this.distanceMeters, this.stars)}`);
-    this.themeLabelText.setText(`${this.stars}`);
+    this.scoreText.setText(`${getScore(this.distanceMeters, this.collectiblesCollected, this.collectibleConfig.scoreValue)}`);
+    this.themeLabelText.setText(`${this.collectiblesCollected}`);
     this.healthText.setText(`${'♥'.repeat(this.healthState.current)}${'♡'.repeat(this.healthState.max - this.healthState.current)}`);
+  }
+
+  private refreshCollectibleHudIcon(): void {
+    const previousIcon = this.collectibleHudIcon;
+    const iconIndex = this.hudLayer.getIndex(previousIcon);
+    this.collectibleHudIcon = this.createCollectibleIcon(96, 31, 0.72, this.collectibleConfig);
+    this.hudLayer.addAt(this.collectibleHudIcon, iconIndex);
+    previousIcon.destroy(true);
+  }
+
+  private createCollectibleIcon(x: number, y: number, scale: number, config: CollectibleConfig): Phaser.GameObjects.Container {
+    const icon = this.add.container(x, y).setScale(scale);
+    if (config.kind === 'coin') {
+      icon.add(this.add.circle(0, 0, 15, config.color).setStrokeStyle(3, config.accentColor));
+      icon.add(this.add.circle(0, 0, 8, 0xffffff, 0.16));
+      icon.add(this.add.rectangle(0, 0, 4, 18, config.accentColor, 0.72));
+      return icon;
+    }
+
+    if (config.kind === 'flower') {
+      for (let i = 0; i < 6; i += 1) {
+        const angle = Phaser.Math.DegToRad(i * 60);
+        icon.add(this.add.ellipse(Math.cos(angle) * 10, Math.sin(angle) * 10, 13, 18, config.color).setAngle(i * 60));
+      }
+      icon.add(this.add.circle(0, 0, 8, config.accentColor).setStrokeStyle(2, 0xffffff));
+      return icon;
+    }
+
+    if (config.kind === 'bottle') {
+      icon.add(this.add.rectangle(0, 4, 20, 28, config.color, 0.95).setStrokeStyle(3, config.accentColor));
+      icon.add(this.add.rectangle(0, -15, 12, 10, config.accentColor).setStrokeStyle(2, 0x65c7f7));
+      icon.add(this.add.rectangle(0, 5, 12, 14, 0xffffff, 0.45));
+      return icon;
+    }
+
+    if (config.kind === 'leaf') {
+      icon.add(this.add.ellipse(0, 0, 24, 34, config.color).setAngle(-28).setStrokeStyle(3, config.accentColor));
+      icon.add(this.add.line(0, 0, -3, 11, 8, -12, config.accentColor, 0.9).setLineWidth(2));
+      return icon;
+    }
+
+    if (config.kind === 'balloon') {
+      icon.add(this.add.ellipse(0, -4, 24, 30, config.color).setStrokeStyle(3, config.accentColor));
+      icon.add(this.add.triangle(0, 13, -5, 6, 5, 6, 0, 15, config.accentColor));
+      icon.add(this.add.line(0, 0, 0, 17, -2, 30, 0xffffff, 0.78).setLineWidth(2));
+      return icon;
+    }
+
+    icon.add(this.add.star(0, 0, 5, 8, 18, config.color).setStrokeStyle(3, config.accentColor));
+    return icon;
   }
 
   private emitScreen(screen: LobbyScreen): void {
@@ -332,10 +396,15 @@ export class RunnerScene extends Phaser.Scene {
           characterIndex: this.selectedCharacterIndex,
           lane: this.currentLane,
           pose: this.pose,
+          renderMode: this.isUsingLayeredBabyRunner() ? 'layered-2d' : 'three-3d',
           state: this.state
         }
       })
     );
+  }
+
+  private isUsingLayeredBabyRunner(): boolean {
+    return ENABLE_3D_RUNNER && resolveSelection(this.selection).id === 'baby-brother';
   }
 
   private createSetupLayer(): void {
@@ -1001,12 +1070,18 @@ export class RunnerScene extends Phaser.Scene {
 
   private drawPlayerParts(player: Phaser.GameObjects.Container): void {
     const visual = this.add.container(0, 0);
+    this.layeredBabyRig = undefined;
     this.drawCharacterParts(visual, resolveSelection(this.selection));
     player.add(visual);
     this.playerVisual = visual;
   }
 
   private drawCharacterParts(player: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    if (preset.id === 'baby-brother') {
+      this.drawLayeredBabyRunner(player, preset);
+      return;
+    }
+
     if (this.textures.exists(preset.assetKey)) {
       player.add(this.add.ellipse(0, 8, 70, 18, 0x000000, 0.14));
       player.add(this.add.image(0, 20, preset.assetKey).setOrigin(0.5, 1).setDisplaySize(108, 162));
@@ -1037,6 +1112,62 @@ export class RunnerScene extends Phaser.Scene {
       player.add(this.add.ellipse(-12, -104, 23, 15, 0xd9edf4).setStrokeStyle(3, preset.detailColor));
       player.add(this.add.ellipse(12, -104, 23, 15, 0xd9edf4).setStrokeStyle(3, preset.detailColor));
     }
+  }
+
+  private drawLayeredBabyRunner(player: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    const skin = preset.skinColor;
+    const diaper = 0xffffff;
+    const diaperLine = 0xbfd7e6;
+    const pacifierBlue = 0x65c7f7;
+    const bonnet = 0xdfeeee;
+    const goggle = 0x2d3135;
+
+    player.add(this.add.ellipse(0, 20, 96, 26, 0x000000, 0.14));
+
+    const leftArm = this.add.container(-31, -72);
+    leftArm.add(this.add.ellipse(0, 18, 16, 54, skin).setStrokeStyle(2, 0xf4b58f, 0.48));
+    leftArm.add(this.add.ellipse(-2, -14, 20, 13, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
+    leftArm.setAngle(-31);
+
+    const rightArm = this.add.container(31, -72);
+    rightArm.add(this.add.ellipse(0, 18, 16, 54, skin).setStrokeStyle(2, 0xf4b58f, 0.48));
+    rightArm.add(this.add.ellipse(2, -14, 20, 13, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
+    rightArm.setAngle(31);
+
+    const leftLeg = this.add.container(-31, -12);
+    leftLeg.add(this.add.ellipse(0, 6, 18, 42, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
+    leftLeg.add(this.add.ellipse(-2, 32, 24, 13, 0xffd2bc).setStrokeStyle(2, 0xf4b58f, 0.42));
+    leftLeg.setAngle(30);
+
+    const rightLeg = this.add.container(31, -12);
+    rightLeg.add(this.add.ellipse(0, 6, 18, 42, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
+    rightLeg.add(this.add.ellipse(2, 32, 24, 13, 0xffd2bc).setStrokeStyle(2, 0xf4b58f, 0.42));
+    rightLeg.setAngle(-30);
+
+    const body = this.add.container(0, -42);
+    body.add(this.add.ellipse(0, -13, 58, 54, skin).setStrokeStyle(2, 0xf3b590, 0.34));
+    body.add(this.add.ellipse(0, 17, 72, 50, diaper).setStrokeStyle(3, diaperLine));
+    body.add(this.add.arc(-17, 17, 18, 205, 345, false, diaperLine, 0.5).setStrokeStyle(2, diaperLine, 0.78));
+    body.add(this.add.arc(17, 17, 18, 195, 335, false, diaperLine, 0.5).setStrokeStyle(2, diaperLine, 0.78));
+    body.add(this.add.line(0, 0, -28, 8, 28, 8, diaperLine, 0.55).setLineWidth(2));
+    body.add(this.add.circle(0, 19, 4, 0xaee6ff, 0.72));
+
+    const head = this.add.container(0, -93);
+    head.add(this.add.circle(0, 6, 29, skin).setStrokeStyle(2, 0xf4b58f, 0.32));
+    head.add(this.add.ellipse(0, -1, 58, 53, bonnet).setStrokeStyle(2, 0xb8c8c6));
+    head.add(this.add.arc(0, 18, 21, 205, 335, false, 0xb8c8c6, 0.55).setStrokeStyle(2, 0xb8c8c6));
+    head.add(this.add.rectangle(0, -23, 38, 7, 0x8c9799, 0.85));
+    head.add(this.add.circle(-12, -26, 8, goggle, 0.78).setStrokeStyle(2, 0xffffff));
+    head.add(this.add.circle(12, -26, 8, goggle, 0.78).setStrokeStyle(2, 0xffffff));
+
+    const pacifier = this.add.container(33, -80);
+    pacifier.add(this.add.line(0, 0, -16, -3, -5, 8, 0x9ed5ef, 0.72).setOrigin(0));
+    pacifier.add(this.add.circle(0, 0, 7, pacifierBlue).setStrokeStyle(2, 0xffffff));
+    pacifier.add(this.add.rectangle(0, 0, 13, 5, 0xffffff, 0.8));
+    pacifier.add(this.add.circle(0, 0, 3, 0x2f80ed));
+
+    player.add([leftLeg, rightLeg, body, leftArm, rightArm, head, pacifier]);
+    this.layeredBabyRig = { head, body, leftArm, rightArm, leftLeg, rightLeg, pacifier };
   }
 
   private bindControls(): void {
@@ -1149,12 +1280,85 @@ export class RunnerScene extends Phaser.Scene {
         ease: 'Sine.easeInOut'
       })
     ];
+
+    if (this.layeredBabyRig && this.isUsingLayeredBabyRunner()) {
+      const rig = this.layeredBabyRig;
+      this.runTweens.push(
+        this.tweens.add({
+          targets: rig.leftArm,
+          angle: { from: -42, to: -18 },
+          y: { from: -78, to: -67 },
+          scaleY: { from: 1.08, to: 0.94 },
+          duration: 210,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: rig.rightArm,
+          angle: { from: 17, to: 43 },
+          y: { from: -66, to: -79 },
+          scaleY: { from: 0.94, to: 1.08 },
+          duration: 210,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: rig.leftLeg,
+          angle: { from: 18, to: 39 },
+          y: { from: -18, to: -5 },
+          scaleY: { from: 1.02, to: 0.9 },
+          duration: 210,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: rig.rightLeg,
+          angle: { from: -39, to: -18 },
+          y: { from: -5, to: -18 },
+          scaleY: { from: 0.9, to: 1.02 },
+          duration: 210,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: rig.body,
+          y: { from: -39, to: -45 },
+          scaleX: { from: 1.02, to: 0.99 },
+          duration: 210,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: [rig.head, rig.pacifier],
+          y: '-=5',
+          angle: { from: -3, to: 3 },
+          duration: 240,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        })
+      );
+    }
   }
 
   private stopRunAnimation(): void {
     this.runTweens.forEach((tween) => tween.stop());
     this.runTweens = [];
     this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
+    if (this.layeredBabyRig) {
+      this.layeredBabyRig.leftArm.setPosition(-31, -72).setScale(1).setAngle(-31);
+      this.layeredBabyRig.rightArm.setPosition(31, -72).setScale(1).setAngle(31);
+      this.layeredBabyRig.leftLeg.setPosition(-31, -12).setScale(1).setAngle(30);
+      this.layeredBabyRig.rightLeg.setPosition(31, -12).setScale(1).setAngle(-30);
+      this.layeredBabyRig.body.setPosition(0, -42).setScale(1).setAngle(0);
+      this.layeredBabyRig.head.setPosition(0, -93).setScale(1).setAngle(0);
+      this.layeredBabyRig.pacifier.setPosition(33, -80).setScale(1).setAngle(0);
+    }
   }
 
   private enterSetup(): void {
@@ -1179,12 +1383,18 @@ export class RunnerScene extends Phaser.Scene {
     this.currentLane = 1;
     this.healthState = createHealthState();
     this.currentTheme = LEVEL_THEMES[this.selectedThemeIndex];
+    this.collectibleConfig = this.currentTheme.collectible;
+    this.refreshCollectibleHudIcon();
     this.distanceMeters = 0;
-    this.stars = 0;
+    this.collectiblesCollected = 0;
     this.runStartedAt = this.time.now;
     this.nextSpawnAt = this.time.now + 600;
     this.pose = 'run';
-    this.player.setVisible(true).setPosition(getLaneX(this.currentLane), PLAYER_Y).setScale(1).setAlpha(ENABLE_3D_RUNNER ? 0 : 1);
+    this.player
+      .setVisible(this.isUsingLayeredBabyRunner() || !ENABLE_3D_RUNNER)
+      .setPosition(getLaneX(this.currentLane), PLAYER_Y)
+      .setScale(1)
+      .setAlpha(this.isUsingLayeredBabyRunner() || !ENABLE_3D_RUNNER ? 1 : 0);
     this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
     this.startRunAnimation();
     this.emitRunnerState();
@@ -1266,12 +1476,12 @@ export class RunnerScene extends Phaser.Scene {
 
     if (roll < 6) {
       this.spawnObstacle(lane, roll < 3 ? 'block' : 'bar');
-      this.spawnStar(((lane + Phaser.Math.Between(1, 2)) % 3) as LaneIndex);
+      this.spawnCollectible(((lane + Phaser.Math.Between(1, 2)) % 3) as LaneIndex);
       return;
     }
 
-    this.spawnStar(lane);
-    this.spawnStar(((lane + 1) % 3) as LaneIndex);
+    this.spawnCollectible(lane);
+    this.spawnCollectible(((lane + 1) % 3) as LaneIndex);
   }
 
   private spawnObstacle(lane: LaneIndex, kind: ObstacleKind): void {
@@ -1466,12 +1676,16 @@ export class RunnerScene extends Phaser.Scene {
     obstacle.add(cue);
   }
 
-  private spawnStar(lane: LaneIndex): void {
-    const star = this.add.star(getLaneX(lane), 110, 5, 8, 18, 0xffd447) as Collectible;
-    star.setScale(0.55);
-    this.physics.add.existing(star);
-    star.body.setAllowGravity(false);
-    this.collectibles.add(star);
+  private spawnCollectible(lane: LaneIndex): void {
+    const collectible = this.add.container(getLaneX(lane), 110) as Collectible;
+    collectible.collectibleId = this.collectibleConfig.id;
+    collectible.add(this.createCollectibleIcon(0, 0, 1, this.collectibleConfig));
+    collectible.setScale(0.55);
+    this.physics.add.existing(collectible);
+    collectible.body.setAllowGravity(false);
+    collectible.body.setSize(48, 48);
+    collectible.body.setOffset(-24, -24);
+    this.collectibles.add(collectible);
   }
 
   private moveObjects(delta: number, speed: number): void {
@@ -1487,24 +1701,24 @@ export class RunnerScene extends Phaser.Scene {
     });
 
     this.collectibles.children.each((child) => {
-      const star = child as Collectible;
-      star.y += moveY;
-      star.rotation += delta / 260;
-      star.setScale(Math.min(1.2, star.scale + delta / 9000));
-      if (star.y > GAME_HEIGHT + 40) {
-        star.destroy();
+      const collectible = child as Collectible;
+      collectible.y += moveY;
+      collectible.rotation += delta / 260;
+      collectible.setScale(Math.min(1.2, collectible.scale + delta / 9000));
+      if (collectible.y > GAME_HEIGHT + 40) {
+        collectible.destroy();
       }
       return true;
     });
   }
 
-  private collectStar(star: Collectible): void {
+  private collectItem(collectible: Collectible): void {
     if (this.state !== 'running') {
       return;
     }
 
-    this.stars += 1;
-    star.destroy();
+    this.collectiblesCollected += 1;
+    collectible.destroy();
   }
 
   private hitObstacle(obstacle: Obstacle): void {
@@ -1552,7 +1766,7 @@ export class RunnerScene extends Phaser.Scene {
       yoyo: true,
       duration: 110,
       repeat: 5,
-      onComplete: () => this.player.setAlpha(1)
+      onComplete: () => this.player.setAlpha(this.isUsingLayeredBabyRunner() || !ENABLE_3D_RUNNER ? 1 : 0)
     });
   }
 
@@ -1645,7 +1859,7 @@ export class RunnerScene extends Phaser.Scene {
     this.stopThemeMusic();
     this.hudLayer.setVisible(false);
     this.clearObjects();
-    const score = getScore(this.distanceMeters, this.stars);
+    const score = getScore(this.distanceMeters, this.collectiblesCollected, this.collectibleConfig.scoreValue);
     const preset = resolveSelection(this.selection);
     this.resultLayer.destroy(true);
     this.resultLayer = this.add.container(0, 0);
@@ -1666,7 +1880,7 @@ export class RunnerScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const detail = this.add
-      .text(GAME_WIDTH / 2, 356, `星星 ${this.stars}  距离 ${Math.floor(this.distanceMeters)}米`, {
+      .text(GAME_WIDTH / 2, 356, `${this.collectibleConfig.label} ${this.collectiblesCollected}  距离 ${Math.floor(this.distanceMeters)}米`, {
         ...TEXT_STYLE,
         color: '#527084',
         fontSize: '15px'

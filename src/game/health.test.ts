@@ -6,6 +6,14 @@ describe('health state', () => {
     expect(createHealthState()).toEqual({ current: 3, max: 3, invulnerableUntil: 0 });
   });
 
+  it('can start with configured current and max health', () => {
+    expect(createHealthState(5, 4)).toEqual({ current: 4, max: 5, invulnerableUntil: 0 });
+  });
+
+  it('clamps configured current health into range', () => {
+    expect(createHealthState(2, 5)).toEqual({ current: 2, max: 2, invulnerableUntil: 0 });
+  });
+
   it('reduces health by one on valid damage', () => {
     expect(applyDamage(createHealthState(), 1000)).toEqual({
       current: 2,
