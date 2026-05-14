@@ -37,9 +37,10 @@ const TEXT_STYLE = {
   fontFamily: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif',
   color: '#17263a'
 };
-const ENABLE_3D_LOBBY_CHARACTERS = true;
-const ENABLE_3D_RUNNER = true;
-const ENABLE_3D_SCENES = true;
+const LAYERED_BABY_VISUAL_SCALE = 0.7;
+const ENABLE_3D_LOBBY_CHARACTERS = false;
+const ENABLE_3D_RUNNER = false;
+const ENABLE_3D_SCENES = false;
 
 declare global {
   interface Window {
@@ -522,21 +523,20 @@ export class RunnerScene extends Phaser.Scene {
   private addLobbyCharacter(preset: CharacterPreset, index: number): void {
     const selected = index === this.selectedCharacterIndex;
     const spots = [
-      { x: 62, y: 488, scale: 0.42 },
-      { x: 106, y: 370, scale: 0.4 },
-      { x: 198, y: 328, scale: 0.46 },
-      { x: 294, y: 394, scale: 0.4 },
-      { x: 326, y: 488, scale: 0.42 }
+      { x: 72, y: 480, scale: 0.72 },
+      { x: 100, y: 340, scale: 0.65 },
+      { x: 195, y: 300, scale: 0.85 },
+      { x: 290, y: 340, scale: 0.65 },
+      { x: 318, y: 480, scale: 0.72 }
     ];
     const homeSpot = spots[index];
-    const selectedScale = homeSpot.scale * 1.2;
+    const selectedScale = homeSpot.scale * 1.08;
     const character = this.add
       .container(homeSpot.x, homeSpot.y)
       .setScale(selected ? selectedScale : homeSpot.scale)
       .setAlpha(selected ? 1 : 0.82)
       .setDepth(selected ? 14 : 4 + Math.round(homeSpot.y / 10));
 
-    character.add(this.add.ellipse(0, 38, 110, 26, 0x000000, selected ? 0.16 : 0.07));
     if (ENABLE_3D_LOBBY_CHARACTERS) {
       // 3D lobby actors are rendered by ThreeTechPreview; Phaser keeps click zones and selection UI.
     } else {
@@ -544,7 +544,7 @@ export class RunnerScene extends Phaser.Scene {
     }
 
     if (selected) {
-      character.add(this.add.circle(0, -50, 68, 0xffd447, 0.1).setStrokeStyle(4, 0xffd447, 0.52).setDepth(-2));
+      character.add(this.add.circle(0, -64, 66, 0xffd447, 0.08).setStrokeStyle(4, 0xffd447, 0.46).setDepth(-2));
     }
     character.setInteractive(new Phaser.Geom.Rectangle(-58, -150, 116, 190), Phaser.Geom.Rectangle.Contains);
     character.on('pointerup', () => this.selectLobbyCharacter(index));
@@ -553,14 +553,14 @@ export class RunnerScene extends Phaser.Scene {
     if (selected) {
       this.tweens.add({
         targets: character,
-        scale: homeSpot.scale * 1.28,
-        duration: 190,
+        scale: homeSpot.scale * 1.14,
+        duration: 220,
         ease: 'Back.easeOut'
       });
       this.tweens.add({
         targets: character,
-        y: homeSpot.y - 6,
-        duration: 980,
+        y: homeSpot.y - 4,
+        duration: 1500,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
@@ -627,133 +627,54 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawLobbyImageScene(character: Phaser.GameObjects.Container, preset: CharacterPreset): void {
-    if (preset.id === 'little-star') {
-      const swing = this.add.container(0, -8);
-      const shadow = this.add.ellipse(0, 42, 92, 18, 0x000000, 0.12);
-      character.add(shadow);
-      swing.add(this.add.line(0, 0, -42, -112, -24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
-      swing.add(this.add.line(0, 0, 42, -112, 24, 18, 0xffffff, 0.75).setOrigin(0).setLineWidth(3));
-      swing.add(this.add.rectangle(0, 32, 86, 10, 0xffd447).setStrokeStyle(2, 0x8c5a2b));
-      this.drawLayeredLobbyRig(swing, preset, 112, 168, 36, shadow);
-      character.add(swing);
-      this.tweens.add({ targets: swing, angle: { from: -8, to: 8 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return;
-    }
-
-    const shadow = this.add.ellipse(0, 40, preset.id === 'baby-brother' ? 100 : 82, 18, 0x000000, 0.12);
+    const size = this.getLobbySpriteSize(preset);
+    const shadow = this.add.ellipse(0, 38, size.shadowWidth, 18, 0x000000, 0.1).setDepth(-1);
+    const sprite = this.add.image(0, 34, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(size.width, size.height);
+    const actor = this.add.container(0, 0);
+    actor.add(sprite);
     character.add(shadow);
-    const displayHeight = preset.id === 'baby-brother' ? 122 : 168;
-    const displayWidth = preset.id === 'baby-brother' ? 130 : 118;
-    const rig = this.drawLayeredLobbyRig(character, preset, displayWidth, displayHeight, 36, shadow);
+    character.add(actor);
 
-    if (preset.id === 'baby-brother') {
-      this.tweens.add({ targets: rig, x: 8, angle: -3, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return;
-    }
-
-    if (preset.id === 'ice-princess') {
+    if (preset.id === 'ice-princess' || preset.id === 'pudding') {
       for (let i = 0; i < 4; i += 1) {
-        const sparkle = this.add.star(-44 + i * 30, -86 + (i % 2) * 22, 4, 2, 6, 0xffffff, 0.94);
+        const sparkle = this.add.star(-44 + i * 30, -82 + (i % 2) * 22, 4, 2, 6, 0xffffff, 0.86);
         character.add(sparkle);
-        this.tweens.add({ targets: sparkle, alpha: 0.25, scale: 1.5, duration: 620 + i * 120, yoyo: true, repeat: -1 });
+        this.tweens.add({ targets: sparkle, alpha: 0.24, scale: 1.35, duration: 900 + i * 140, yoyo: true, repeat: -1 });
       }
-      return;
     }
 
-    if (preset.id === 'pudding') {
-      this.tweens.add({ targets: rig, angle: { from: -2.5, to: 2.5 }, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return;
-    }
-
-    this.tweens.add({ targets: rig, y: -4, duration: 1120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const idle = this.getLobbyIdleMotion(preset);
+    this.tweens.add({ targets: actor, y: idle.y, angle: idle.angle, duration: idle.duration, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: shadow, scaleX: 0.94, alpha: 0.07, duration: idle.duration, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 
-  private drawLayeredLobbyRig(
-    parent: Phaser.GameObjects.Container,
-    preset: CharacterPreset,
-    displayWidth: number,
-    displayHeight: number,
-    bottomY: number,
-    shadow: Phaser.GameObjects.Ellipse
-  ): Phaser.GameObjects.Container {
-    const rig = this.add.container(0, 0);
-    const texture = this.textures.get(preset.lobbyAssetKey);
-    const source = texture.getSourceImage() as { width: number; height: number };
-    const sourceWidth = source.width;
-    const sourceHeight = source.height;
-    const base = this.add.image(0, bottomY, preset.lobbyAssetKey).setOrigin(0.5, 1).setDisplaySize(displayWidth, displayHeight);
-    rig.add(base);
-
-    const addBand = (name: string, yRatio: number, heightRatio: number, width = displayWidth, heightScale = 1) => {
-      const part = this.add
-        .image(0, bottomY, preset.lobbyAssetKey)
-        .setOrigin(0.5, 1)
-        .setCrop(0, sourceHeight * yRatio, sourceWidth, sourceHeight * heightRatio)
-        .setDisplaySize(width, displayHeight * heightScale)
-        .setAlpha(0.68);
-      part.setName(name);
-      rig.add(part);
-      return part;
-    };
-
+  private getLobbySpriteSize(preset: CharacterPreset): { width: number; height: number; shadowWidth: number } {
     if (preset.id === 'baby-brother') {
-      const hands = addBand('baby-hands', 0.68, 0.32, displayWidth, 1.01);
-      rig.add(this.add.ellipse(0, bottomY - displayHeight * 0.05, displayWidth * 0.78, 18, 0xffffff, 0.13).setDepth(-1));
-      this.tweens.add({ targets: base, y: base.y - 4, angle: { from: -1.2, to: 1.2 }, duration: 980, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.tweens.add({ targets: base, scaleY: 1.025, duration: 820, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.tweens.add({ targets: hands, x: 5, angle: -2.5, duration: 620, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.addBreathingTween(base, shadow, 1080, 0.012);
-      parent.add(rig);
-      return rig;
+      return { width: 116, height: 112, shadowWidth: 86 };
     }
-
-    const lower = addBand('lower-body-overlay', 0.62, 0.38);
-    const head = addBand('head-overlay', 0, 0.38, displayWidth * 0.98, 1.01);
-
-    const chestLight = this.add.ellipse(0, bottomY - displayHeight * 0.52, displayWidth * 0.62, displayHeight * 0.12, 0xffffff, 0.1);
-    rig.add(chestLight);
-    this.tweens.add({ targets: base, scaleY: 1.018, y: base.y - 1, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: head, y: head.y - 1.5, angle: { from: -0.8, to: 0.8 }, duration: 1360, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: lower, angle: { from: -0.8, to: 0.8 }, duration: preset.id === 'pudding' ? 880 : 1280, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: shadow, scaleX: 1.08, alpha: 0.08, duration: 1180, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-    if (preset.id === 'air-captain') {
-      const wing = this.add.container(38, bottomY - displayHeight * 0.58);
-      wing.add(this.add.rectangle(0, 0, 30, 8, preset.accentColor, 0.92).setStrokeStyle(1, 0xffffff, 0.75));
-      wing.add(this.add.triangle(16, 0, 0, -8, 0, 8, 20, 0, preset.accentColor));
-      rig.add(wing);
-      this.tweens.add({ targets: wing, angle: { from: -8, to: -24 }, y: wing.y - 6, duration: 920, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    if (preset.id === 'ice-princess') {
+      return { width: 104, height: 156, shadowWidth: 84 };
     }
-
-    parent.add(rig);
-    return rig;
+    if (preset.id === 'pudding') {
+      return { width: 112, height: 134, shadowWidth: 88 };
+    }
+    if (preset.id === 'little-star') {
+      return { width: 104, height: 148, shadowWidth: 78 };
+    }
+    return { width: 100, height: 146, shadowWidth: 78 };
   }
 
-  private addBreathingTween(
-    sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Container,
-    shadow: Phaser.GameObjects.Ellipse,
-    duration: number,
-    amount: number
-  ): void {
-    this.tweens.add({
-      targets: sprite,
-      scaleX: sprite.scaleX * (1 + amount),
-      scaleY: sprite.scaleY * (1 - amount * 0.7),
-      y: sprite.y - 3,
-      duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-    this.tweens.add({
-      targets: shadow,
-      scaleX: 1.08,
-      alpha: 0.08,
-      duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+  private getLobbyIdleMotion(preset: CharacterPreset): { y: number; angle: { from: number; to: number }; duration: number } {
+    if (preset.id === 'baby-brother') {
+      return { y: -3, angle: { from: -1.5, to: 1.5 }, duration: 1700 };
+    }
+    if (preset.id === 'air-captain') {
+      return { y: -4, angle: { from: -1, to: 1.2 }, duration: 1550 };
+    }
+    if (preset.id === 'pudding') {
+      return { y: -3, angle: { from: -1.2, to: 1.2 }, duration: 1650 };
+    }
+    return { y: -4, angle: { from: -0.8, to: 0.8 }, duration: 1800 };
   }
 
   private drawFrontCharacter(parent: Phaser.GameObjects.Container, preset: CharacterPreset, x: number, y: number, scale: number): void {
@@ -1115,6 +1036,13 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawLayeredBabyRunner(player: Phaser.GameObjects.Container, preset: CharacterPreset): void {
+    if (this.textures.exists(preset.assetKey)) {
+      player.add(this.add.ellipse(0, 22, 76, 18, 0x000000, 0.16));
+      player.add(this.add.image(0, 20, preset.assetKey).setOrigin(0.5, 1).setDisplaySize(86, 129));
+      this.layeredBabyRig = undefined;
+      return;
+    }
+
     const skin = preset.skinColor;
     const diaper = 0xffffff;
     const diaperLine = 0xbfd7e6;
@@ -1122,46 +1050,48 @@ export class RunnerScene extends Phaser.Scene {
     const bonnet = 0xdfeeee;
     const goggle = 0x2d3135;
 
-    player.add(this.add.ellipse(0, 20, 96, 26, 0x000000, 0.14));
+    player.add(this.add.ellipse(0, 24, 72, 18, 0x000000, 0.14));
 
-    const leftArm = this.add.container(-31, -72);
-    leftArm.add(this.add.ellipse(0, 18, 16, 54, skin).setStrokeStyle(2, 0xf4b58f, 0.48));
-    leftArm.add(this.add.ellipse(-2, -14, 20, 13, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
-    leftArm.setAngle(-31);
+    const farSkin = 0xf0ad8b;
+    const leftArm = this.add.container(-24, -48);
+    leftArm.add(this.add.ellipse(0, 15, 13, 36, farSkin).setStrokeStyle(2, 0xd99173, 0.42));
+    leftArm.add(this.add.ellipse(-2, 35, 19, 12, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
+    leftArm.setAngle(28);
 
-    const rightArm = this.add.container(31, -72);
-    rightArm.add(this.add.ellipse(0, 18, 16, 54, skin).setStrokeStyle(2, 0xf4b58f, 0.48));
-    rightArm.add(this.add.ellipse(2, -14, 20, 13, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
-    rightArm.setAngle(31);
+    const rightArm = this.add.container(24, -48);
+    rightArm.add(this.add.ellipse(0, 15, 13, 36, farSkin).setStrokeStyle(2, 0xd99173, 0.42));
+    rightArm.add(this.add.ellipse(2, 35, 19, 12, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
+    rightArm.setAngle(-28);
 
-    const leftLeg = this.add.container(-31, -12);
-    leftLeg.add(this.add.ellipse(0, 6, 18, 42, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
-    leftLeg.add(this.add.ellipse(-2, 32, 24, 13, 0xffd2bc).setStrokeStyle(2, 0xf4b58f, 0.42));
-    leftLeg.setAngle(30);
+    const leftLeg = this.add.container(-18, 0);
+    leftLeg.add(this.add.ellipse(0, 0, 15, 28, skin).setStrokeStyle(2, 0xf4b58f, 0.48));
+    leftLeg.add(this.add.ellipse(-2, 21, 24, 12, 0xffd2bc).setStrokeStyle(2, 0xf4b58f, 0.42));
+    leftLeg.setAngle(-22);
 
-    const rightLeg = this.add.container(31, -12);
-    rightLeg.add(this.add.ellipse(0, 6, 18, 42, skin).setStrokeStyle(2, 0xf4b58f, 0.5));
-    rightLeg.add(this.add.ellipse(2, 32, 24, 13, 0xffd2bc).setStrokeStyle(2, 0xf4b58f, 0.42));
-    rightLeg.setAngle(-30);
+    const rightLeg = this.add.container(18, 0);
+    rightLeg.add(this.add.ellipse(0, 0, 15, 28, skin).setStrokeStyle(2, 0xf4b58f, 0.48));
+    rightLeg.add(this.add.ellipse(2, 21, 24, 12, 0xffd2bc).setStrokeStyle(2, 0xf4b58f, 0.42));
+    rightLeg.setAngle(22);
 
-    const body = this.add.container(0, -42);
-    body.add(this.add.ellipse(0, -13, 58, 54, skin).setStrokeStyle(2, 0xf3b590, 0.34));
-    body.add(this.add.ellipse(0, 17, 72, 50, diaper).setStrokeStyle(3, diaperLine));
-    body.add(this.add.arc(-17, 17, 18, 205, 345, false, diaperLine, 0.5).setStrokeStyle(2, diaperLine, 0.78));
-    body.add(this.add.arc(17, 17, 18, 195, 335, false, diaperLine, 0.5).setStrokeStyle(2, diaperLine, 0.78));
-    body.add(this.add.line(0, 0, -28, 8, 28, 8, diaperLine, 0.55).setLineWidth(2));
-    body.add(this.add.circle(0, 19, 4, 0xaee6ff, 0.72));
+    const body = this.add.container(0, -28);
+    body.add(this.add.ellipse(0, -10, 46, 34, skin).setStrokeStyle(2, 0xf3b590, 0.34));
+    body.add(this.add.ellipse(0, 14, 56, 30, diaper).setStrokeStyle(3, diaperLine));
+    body.add(this.add.arc(-12, 12, 12, 205, 345, false, diaperLine, 0.45).setStrokeStyle(2, diaperLine, 0.68));
+    body.add(this.add.arc(12, 12, 12, 195, 335, false, diaperLine, 0.45).setStrokeStyle(2, diaperLine, 0.68));
+    body.add(this.add.line(0, 0, -21, 5, 21, 5, diaperLine, 0.46).setLineWidth(2));
+    body.add(this.add.circle(0, 15, 3, 0xaee6ff, 0.72));
+    body.setScale(1, 0.72);
 
-    const head = this.add.container(0, -93);
-    head.add(this.add.circle(0, 6, 29, skin).setStrokeStyle(2, 0xf4b58f, 0.32));
-    head.add(this.add.ellipse(0, -1, 58, 53, bonnet).setStrokeStyle(2, 0xb8c8c6));
-    head.add(this.add.arc(0, 18, 21, 205, 335, false, 0xb8c8c6, 0.55).setStrokeStyle(2, 0xb8c8c6));
-    head.add(this.add.rectangle(0, -23, 38, 7, 0x8c9799, 0.85));
-    head.add(this.add.circle(-12, -26, 8, goggle, 0.78).setStrokeStyle(2, 0xffffff));
-    head.add(this.add.circle(12, -26, 8, goggle, 0.78).setStrokeStyle(2, 0xffffff));
+    const head = this.add.container(0, -65);
+    head.add(this.add.circle(0, 6, 23, skin).setStrokeStyle(2, 0xf4b58f, 0.32));
+    head.add(this.add.ellipse(0, -1, 46, 40, bonnet).setStrokeStyle(2, 0xb8c8c6));
+    head.add(this.add.arc(0, 15, 16, 205, 335, false, 0xb8c8c6, 0.55).setStrokeStyle(2, 0xb8c8c6));
+    head.add(this.add.rectangle(0, -18, 31, 6, 0x8c9799, 0.85));
+    head.add(this.add.circle(-9, -21, 7, goggle, 0.78).setStrokeStyle(2, 0xffffff));
+    head.add(this.add.circle(9, -21, 7, goggle, 0.78).setStrokeStyle(2, 0xffffff));
 
-    const pacifier = this.add.container(33, -80);
-    pacifier.add(this.add.line(0, 0, -16, -3, -5, 8, 0x9ed5ef, 0.72).setOrigin(0));
+    const pacifier = this.add.container(25, -55);
+    pacifier.add(this.add.line(0, 0, -13, -3, -4, 7, 0x9ed5ef, 0.72).setOrigin(0));
     pacifier.add(this.add.circle(0, 0, 7, pacifierBlue).setStrokeStyle(2, 0xffffff));
     pacifier.add(this.add.rectangle(0, 0, 13, 5, 0xffffff, 0.8));
     pacifier.add(this.add.circle(0, 0, 3, 0x2f80ed));
@@ -1210,18 +1140,20 @@ export class RunnerScene extends Phaser.Scene {
     }
 
     if (direction === 'down') {
+      const poseTarget = this.playerVisual ?? this.player;
+      const visualScale = this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1;
       this.setPose('slide', SLIDE_DURATION_MS);
       this.tweens.add({
-        targets: this.playerVisual ?? this.player,
-        scaleX: 1.12,
-        scaleY: 0.68,
+        targets: poseTarget,
+        scaleX: visualScale * 1.12,
+        scaleY: visualScale * 0.68,
         angle: -8,
         yoyo: true,
         duration: SLIDE_DURATION_MS / 2,
         ease: 'Sine.easeInOut',
         onComplete: () => {
-          (this.playerVisual ?? this.player).setScale(1);
-          (this.playerVisual ?? this.player).setAngle(0);
+          poseTarget.setScale(visualScale);
+          poseTarget.setAngle(0);
         }
       });
     }
@@ -1233,11 +1165,12 @@ export class RunnerScene extends Phaser.Scene {
     this.stopRunAnimation();
 
     if (pose === 'jump') {
+      const visualScale = this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1;
       this.tweens.add({
         targets: this.playerVisual,
         angle: 10,
-        scaleX: 0.96,
-        scaleY: 1.05,
+        scaleX: visualScale * 0.96,
+        scaleY: visualScale * 1.05,
         yoyo: true,
         duration: duration / 2,
         ease: 'Sine.easeOut'
@@ -1259,14 +1192,15 @@ export class RunnerScene extends Phaser.Scene {
       return;
     }
 
-    this.playerVisual.setPosition(0, 0).setScale(1).setAngle(0);
+    const visualScale = this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1;
+    this.playerVisual.setPosition(0, 0).setScale(visualScale).setAngle(0);
     this.runTweens = [
       this.tweens.add({
         targets: this.playerVisual,
-        y: -8,
-        scaleX: 1.04,
-        scaleY: 0.97,
-        duration: 150,
+        y: this.isUsingLayeredBabyRunner() ? -5 : -8,
+        scaleX: visualScale * 1.03,
+        scaleY: visualScale * 0.98,
+        duration: this.isUsingLayeredBabyRunner() ? 180 : 150,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
@@ -1286,58 +1220,59 @@ export class RunnerScene extends Phaser.Scene {
       this.runTweens.push(
         this.tweens.add({
           targets: rig.leftArm,
-          angle: { from: -42, to: -18 },
-          y: { from: -78, to: -67 },
-          scaleY: { from: 1.08, to: 0.94 },
-          duration: 210,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut'
-        }),
-        this.tweens.add({
-          targets: rig.rightArm,
-          angle: { from: 17, to: 43 },
-          y: { from: -66, to: -79 },
-          scaleY: { from: 0.94, to: 1.08 },
-          duration: 210,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut'
-        }),
-        this.tweens.add({
-          targets: rig.leftLeg,
-          angle: { from: 18, to: 39 },
-          y: { from: -18, to: -5 },
-          scaleY: { from: 1.02, to: 0.9 },
-          duration: 210,
+          angle: { from: 20, to: 34 },
+          y: { from: -55, to: -43 },
+          scaleY: { from: 1.08, to: 0.92 },
+          duration: 240,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut'
         }),
         this.tweens.add({
           targets: rig.rightLeg,
-          angle: { from: -39, to: -18 },
-          y: { from: -5, to: -18 },
-          scaleY: { from: 0.9, to: 1.02 },
-          duration: 210,
+          angle: { from: 14, to: 28 },
+          y: { from: -6, to: 7 },
+          scaleY: { from: 0.94, to: 1.08 },
+          duration: 240,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: rig.rightArm,
+          angle: { from: -34, to: -20 },
+          y: { from: -43, to: -55 },
+          scaleY: { from: 0.92, to: 1.08 },
+          duration: 240,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        }),
+        this.tweens.add({
+          targets: rig.leftLeg,
+          angle: { from: -28, to: -14 },
+          y: { from: 7, to: -6 },
+          scaleY: { from: 1.08, to: 0.94 },
+          duration: 240,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut'
         }),
         this.tweens.add({
           targets: rig.body,
-          y: { from: -39, to: -45 },
-          scaleX: { from: 1.02, to: 0.99 },
-          duration: 210,
+          y: { from: -27, to: -31 },
+          scaleX: { from: 1.02, to: 0.98 },
+          scaleY: { from: 0.7, to: 0.75 },
+          duration: 240,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut'
         }),
         this.tweens.add({
           targets: [rig.head, rig.pacifier],
-          y: '-=5',
-          angle: { from: -3, to: 3 },
-          duration: 240,
+          y: '-=3',
+          angle: { from: -2, to: 2 },
+          duration: 280,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut'
@@ -1349,15 +1284,15 @@ export class RunnerScene extends Phaser.Scene {
   private stopRunAnimation(): void {
     this.runTweens.forEach((tween) => tween.stop());
     this.runTweens = [];
-    this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
+    this.playerVisual?.setPosition(0, 0).setScale(this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1).setAngle(0);
     if (this.layeredBabyRig) {
-      this.layeredBabyRig.leftArm.setPosition(-31, -72).setScale(1).setAngle(-31);
-      this.layeredBabyRig.rightArm.setPosition(31, -72).setScale(1).setAngle(31);
-      this.layeredBabyRig.leftLeg.setPosition(-31, -12).setScale(1).setAngle(30);
-      this.layeredBabyRig.rightLeg.setPosition(31, -12).setScale(1).setAngle(-30);
-      this.layeredBabyRig.body.setPosition(0, -42).setScale(1).setAngle(0);
-      this.layeredBabyRig.head.setPosition(0, -93).setScale(1).setAngle(0);
-      this.layeredBabyRig.pacifier.setPosition(33, -80).setScale(1).setAngle(0);
+      this.layeredBabyRig.leftArm.setPosition(-24, -48).setScale(1).setAngle(28);
+      this.layeredBabyRig.rightArm.setPosition(24, -48).setScale(1).setAngle(-28);
+      this.layeredBabyRig.leftLeg.setPosition(-18, 0).setScale(1).setAngle(-22);
+      this.layeredBabyRig.rightLeg.setPosition(18, 0).setScale(1).setAngle(22);
+      this.layeredBabyRig.body.setPosition(0, -28).setScale(1, 0.72).setAngle(0);
+      this.layeredBabyRig.head.setPosition(0, -65).setScale(1).setAngle(0);
+      this.layeredBabyRig.pacifier.setPosition(25, -55).setScale(1).setAngle(0);
     }
   }
 
