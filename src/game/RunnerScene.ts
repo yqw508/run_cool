@@ -88,6 +88,13 @@ export class RunnerScene extends Phaser.Scene {
   private poseTimer?: Phaser.Time.TimerEvent;
   private runTweens: Phaser.Tweens.Tween[] = [];
   private loadingAssetKeys = new Set<string>();
+  private mapAssetsReady = false;
+  private mapAssetsPromise?: Promise<void>;
+  private runAssetsReady = false;
+  private runAssetsPromise?: Promise<void>;
+  private runAssetsSelectionKey = '';
+  private mapTransitionPending = false;
+  private runTransitionPending = false;
   private lobbyDragStart?: Phaser.Math.Vector2;
   private lobbyDragMoved = false;
 
@@ -184,6 +191,43 @@ export class RunnerScene extends Phaser.Scene {
       OPEN_ASSETS.backgrounds[theme.id],
       OPEN_ASSETS.collectibles[theme.collectible.kind]
     ]);
+  }
+
+  private prefetchMapAssets(): Promise<void> {
+    if (this.mapAssetsReady) {
+      return Promise.resolve();
+    }
+
+    if (!this.mapAssetsPromise) {
+      this.mapAssetsPromise = this.loadMapAssets().then(() => {
+        this.mapAssetsReady = true;
+      });
+    }
+
+    return this.mapAssetsPromise;
+  }
+
+  private getRunAssetsSelectionKey(): string {
+    return `${this.selection.presetId}:${LEVEL_THEMES[this.selectedThemeIndex].id}`;
+  }
+
+  private prefetchRunAssets(): Promise<void> {
+    const selectionKey = this.getRunAssetsSelectionKey();
+    if (this.runAssetsReady && this.runAssetsSelectionKey === selectionKey) {
+      return Promise.resolve();
+    }
+
+    if (!this.runAssetsPromise || this.runAssetsSelectionKey !== selectionKey) {
+      this.runAssetsReady = false;
+      this.runAssetsSelectionKey = selectionKey;
+      this.runAssetsPromise = this.loadRunAssets().then(() => {
+        if (this.runAssetsSelectionKey === selectionKey) {
+          this.runAssetsReady = true;
+        }
+      });
+    }
+
+    return this.runAssetsPromise;
   }
 
   create(): void {
@@ -499,10 +543,20 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer = this.add.container(0, 0);
     if (this.setupStep === 'character') {
       this.createCharacterLobby();
+      void this.prefetchMapAssets().then(() => {
+        if (this.setupStep === 'character' && this.mapTransitionPending) {
+          this.refreshSetup();
+        }
+      });
       return;
     }
 
     this.createMapSelect();
+    void this.prefetchRunAssets().then(() => {
+      if (this.setupStep === 'map' && this.runTransitionPending && this.getRunAssetsSelectionKey() === this.runAssetsSelectionKey) {
+        this.refreshSetup();
+      }
+    });
   }
 
   private createCharacterLobby(): void {
@@ -1079,6 +1133,25 @@ export class RunnerScene extends Phaser.Scene {
     this.createSetupLayer();
   }
 
+  private async enterMapSelect(): Promise<void> {
+    if (this.mapTransitionPending) {
+      return;
+    }
+
+    if (this.mapAssetsReady) {
+      this.setupStep = 'map';
+      this.refreshSetup();
+      return;
+    }
+
+    this.mapTransitionPending = true;
+    this.refreshSetup();
+    await this.prefetchMapAssets();
+    this.mapTransitionPending = false;
+    this.setupStep = 'map';
+    this.refreshSetup();
+  }
+
   private createIconButton(
     x: number,
     y: number,
@@ -1104,15 +1177,23 @@ export class RunnerScene extends Phaser.Scene {
     onClick: () => void
   ): Phaser.GameObjects.Container {
     const button = this.add.container(x, y);
+    const isMapNextButton = this.setupStep === 'character' && x === GAME_WIDTH / 2 && y === 686;
+    const isRunStartButton = this.setupStep === 'map' && x === 276 && y === 696;
+    const displayLabel = isMapNextButton && this.mapTransitionPending
+      ? '\u5730\u56fe\u51c6\u5907\u4e2d...'
+      : isRunStartButton && this.runTransitionPending
+        ? '\u8d5b\u9053\u51c6\u5907\u4e2d...'
+        : label;
+    const clickHandler = isMapNextButton ? () => this.enterMapSelect() : onClick;
     const bg = this.add.rectangle(0, 0, width, height, color, 1).setStrokeStyle(2, 0x152238, 0.2);
     const text = this.add
-      .text(0, 0, label, {
+      .text(0, 0, displayLabel, {
         ...TEXT_STYLE,
         fontSize: width > 100 ? '18px' : '13px',
         fontStyle: 'bold'
       })
       .setOrigin(0.5);
-    bg.setInteractive({ useHandCursor: true }).on('pointerup', onClick);
+    bg.setInteractive({ useHandCursor: true }).on('pointerup', clickHandler);
     button.add([bg, text]);
     return button;
   }
@@ -1497,7 +1578,16 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private async startRun(): Promise<void> {
-    await this.loadRunAssets();
+    if (this.runTransitionPending) {
+      return;
+    }
+
+    this.runTransitionPending = true;
+    if (!this.runAssetsReady || this.runAssetsSelectionKey !== this.getRunAssetsSelectionKey()) {
+      this.refreshSetup();
+    }
+    await this.prefetchRunAssets();
+    this.runTransitionPending = false;
 
     this.emitScreen('running');
     this.state = 'running';
