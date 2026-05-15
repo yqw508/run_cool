@@ -1,9 +1,9 @@
-﻿import Phaser from 'phaser';
+import Phaser from 'phaser';
 import { CHARACTER_PRESETS, DEFAULT_SELECTION, type CharacterPreset, type CharacterSelection, resolveSelection } from './characters';
 import { GAME_HEIGHT, GAME_WIDTH, JUMP_DURATION_MS, PLAYER_Y, SLIDE_DURATION_MS, type CollectibleConfig, type LaneIndex } from './config';
 import { applyDamage, createHealthState, isDefeated, type HealthState } from './health';
 import { bindSwipeInput, type GestureDirection } from './input';
-import { getThemeForRunDistance, LEVEL_THEMES, type LevelTheme, type ThemeObstacle } from './levels';
+import { LEVEL_THEMES, type LevelTheme, type ThemeObstacle } from './levels';
 import { ALL_FINAL_ART_ASSETS, ART_ASSETS } from './artAssets';
 import { ALL_OPEN_ASSETS, OPEN_ASSETS } from './openAssets';
 import { getLaneX, getRunSpeed, getScore, getSpawnDelay, nextLane } from './progression';
@@ -39,6 +39,9 @@ const TEXT_STYLE = {
   fontFamily: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif',
   color: '#17263a'
 };
+
+const SPAWN_ENTRY_Y = 100;
+const COLLECTIBLE_TRAIL_SPACING = 42;
 
 declare global {
   interface Window {
@@ -132,13 +135,6 @@ export class RunnerScene extends Phaser.Scene {
     const elapsed = time - this.runStartedAt;
     const speed = getRunSpeed(elapsed);
     this.distanceMeters += (speed * delta) / 1000 / 10;
-    const nextTheme = getThemeForRunDistance(this.selectedThemeIndex, this.distanceMeters);
-
-    if (nextTheme.id !== this.currentTheme.id) {
-      this.currentTheme = nextTheme;
-      this.drawWorld();
-      this.switchThemeMusic(nextTheme);
-    }
 
     this.updateHud();
 
@@ -158,19 +154,25 @@ export class RunnerScene extends Phaser.Scene {
     const finalBackground = ART_ASSETS.runnerBackgrounds[theme.id];
     const fallbackBackground = OPEN_ASSETS.backgrounds[theme.id];
     const backgroundKey = this.textures.exists(finalBackground.key) ? finalBackground.key : fallbackBackground.key;
+    const usingFinalBackground = backgroundKey === finalBackground.key && this.textures.exists(finalBackground.key);
+    
     if (this.textures.exists(backgroundKey)) {
       this.worldLayer.add(
         this.add
           .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, backgroundKey)
           .setDisplaySize(GAME_WIDTH, GAME_HEIGHT)
-          .setAlpha(backgroundKey === finalBackground.key ? 1 : 0.78)
+          .setAlpha(usingFinalBackground ? 1 : 0.78)
       );
     }
-    this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, theme.skyColor, 0.22));
-    this.worldLayer.add(this.add.circle(68, 82, 34, 0xffe46b));
-    this.drawThemeLandmarks(theme);
-    this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, 680, GAME_WIDTH, 116, theme.groundColor));
-    this.drawRoad(theme);
+    
+    // 如果用的是旧的fallback背景，才需要额外的装饰
+    if (!usingFinalBackground) {
+      this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, theme.skyColor, 0.22));
+      this.worldLayer.add(this.add.circle(68, 82, 34, 0xffe46b));
+      this.drawThemeLandmarks(theme);
+      this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, 680, GAME_WIDTH, 116, theme.groundColor));
+      this.drawRoad(theme);
+    }
   }
 
   private drawRoad(theme: LevelTheme): void {
@@ -291,53 +293,44 @@ export class RunnerScene extends Phaser.Scene {
     this.hudLayer = this.add.container(0, 0);
     const statsBg = this.add.graphics();
     statsBg.fillStyle(0x17263a, 0.18);
-    statsBg.fillRoundedRect(12, 12, 162, 62, 10);
+    statsBg.fillRoundedRect(12, 12, 214, 42, 10);
 
-    const scoreIcon = this.add.container(30, 30);
+    const scoreIcon = this.add.container(30, 31);
     scoreIcon.add(this.add.circle(0, 0, 10, 0xffd447).setStrokeStyle(2, 0xffffff));
     scoreIcon.add(this.add.rectangle(0, 14, 10, 8, 0xffd447).setStrokeStyle(2, 0xffffff));
     scoreIcon.add(this.add.rectangle(0, 21, 24, 5, 0xffffff, 0.9));
 
-    this.collectibleHudIcon = this.createCollectibleIcon(96, 31, 0.72, this.collectibleConfig);
+    this.collectibleHudIcon = this.createCollectibleIcon(99, 31, 0.62, this.collectibleConfig);
     this.scoreText = this.add.text(50, 18, '0', {
       ...TEXT_STYLE,
       color: '#ffffff',
       fontSize: '18px',
       fontStyle: 'bold'
     });
-    this.themeLabelText = this.add.text(116, 18, '0', {
+    this.themeLabelText = this.add.text(117, 18, '0', {
       ...TEXT_STYLE,
       color: '#ffffff',
       fontSize: '18px',
       fontStyle: 'bold'
     });
-    this.healthText = this.add.text(24, 50, '♥♥♥', {
+    this.healthText = this.add.text(156, 18, 'HP 3', {
       ...TEXT_STYLE,
       color: '#ffffff',
       fontSize: '18px',
       fontStyle: 'bold'
     });
 
-    const gestureHint = this.add.container(GAME_WIDTH / 2, 92);
-    const gestureBg = this.add.graphics();
-    gestureBg.fillStyle(0x17263a, 0.16);
-    gestureBg.fillRoundedRect(-88, -19, 176, 38, 18);
-    gestureHint.add(gestureBg);
-    this.addGestureIcon(gestureHint, -54, 0, 'left');
-    this.addGestureIcon(gestureHint, -18, 0, 'right');
-    this.addGestureIcon(gestureHint, 24, 0, 'up');
-    this.addGestureIcon(gestureHint, 60, 0, 'down');
 
     const pauseButton = this.createIconButton(GAME_WIDTH - 48, 34, 56, 36, 0xfff1a8, () => this.pauseRun());
     pauseButton.add(this.add.rectangle(-6, 0, 5, 18, 0x17263a));
     pauseButton.add(this.add.rectangle(6, 0, 5, 18, 0x17263a));
-    this.hudLayer.add([statsBg, scoreIcon, this.collectibleHudIcon, this.scoreText, this.themeLabelText, this.healthText, gestureHint, pauseButton]);
+    this.hudLayer.add([statsBg, scoreIcon, this.collectibleHudIcon, this.scoreText, this.themeLabelText, this.healthText, pauseButton]);
   }
 
   private updateHud(): void {
     this.scoreText.setText(`${getScore(this.distanceMeters, this.collectiblesCollected, this.collectibleConfig.scoreValue)}`);
     this.themeLabelText.setText(`${this.collectiblesCollected}`);
-    this.healthText.setText(`${'♥'.repeat(this.healthState.current)}${'♡'.repeat(this.healthState.max - this.healthState.current)}`);
+    this.healthText.setText(`HP ${this.healthState.current}`);
   }
 
   private refreshCollectibleHudIcon(): void {
@@ -779,13 +772,14 @@ export class RunnerScene extends Phaser.Scene {
 
   private createMapSelect(): void {
     this.emitScreen('map-select');
-    if (this.textures.exists(ART_ASSETS.backgrounds.mapSelect.key)) {
+    const hasFinalMapBackground = this.textures.exists(ART_ASSETS.backgrounds.mapSelect.key);
+    if (hasFinalMapBackground) {
       this.setupLayer.add(this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, ART_ASSETS.backgrounds.mapSelect.key).setDisplaySize(GAME_WIDTH, GAME_HEIGHT));
-      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff, 0.16));
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xfff7df, 0.08));
     } else {
       this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
     }
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
     this.setupLayer.add(
       this.add
         .text(GAME_WIDTH / 2, 48, '选择地图', {
@@ -798,6 +792,9 @@ export class RunnerScene extends Phaser.Scene {
         .setStroke('#2f80ed', 5)
     );
 
+    if (hasFinalMapBackground) {
+      this.addMapHotspots();
+    } else {
     const map = this.add.container(GAME_WIDTH / 2, 342);
     map.add(this.add.ellipse(0, 18, 332, 440, 0xeaf7ff, 0.96).setStrokeStyle(4, 0xffffff));
     map.add(this.add.ellipse(0, 28, 286, 386, 0xbde78a, 0.95));
@@ -814,6 +811,7 @@ export class RunnerScene extends Phaser.Scene {
     LEVEL_THEMES.forEach((theme, index) => {
       this.addMapNode(map, theme, index, nodes[index].x, nodes[index].y, nodes[index].icon, nodes[index].color);
     });
+    }
 
     const selectedTheme = LEVEL_THEMES[this.selectedThemeIndex];
     const panel = this.add.container(GAME_WIDTH / 2, 624);
@@ -842,6 +840,53 @@ export class RunnerScene extends Phaser.Scene {
       this.refreshSetup();
     }));
     this.setupLayer.add(this.createButton(276, 696, 168, 44, '开始酷跑', 0xffd447, () => this.startRun()));
+  }
+
+  private addMapHotspots(): void {
+    // Hotspot coordinates placed directly below each building, near the road
+    const hotspots = [
+      { x: 80, y: 435, width: 78, color: 0xcf5d45 },   // 校园 - below pink house, near road
+      { x: 195, y: 355, width: 78, color: 0xff87b7 },  // 商场 - below candy house, near road
+      { x: 310, y: 485, width: 92, color: 0x2f9e62 },  // 动物园 - below elephant enclosure, near road
+      { x: 320, y: 290, width: 92, color: 0x7a5cff }   // 游乐园 - below ferris wheel, near road
+    ];
+
+    hotspots.forEach((hotspot, index) => {
+      const theme = LEVEL_THEMES[index];
+      const selected = index === this.selectedThemeIndex;
+      const node = this.add.container(hotspot.x, hotspot.y);
+      node.add(this.add.ellipse(0, 18, hotspot.width * 0.78, 12, 0x1f3b2f, selected ? 0.18 : 0.08));
+      node.add(this.add.rectangle(0, 0, hotspot.width, 28, selected ? 0xfff1a8 : 0xffffff, selected ? 0.96 : 0.86).setStrokeStyle(selected ? 3 : 2, hotspot.color, selected ? 0.95 : 0.42));
+      node.add(
+        this.add
+          .text(0, 0, theme.label, {
+            ...TEXT_STYLE,
+            color: '#17263a',
+            fontSize: '15px',
+            fontStyle: 'bold'
+          })
+          .setOrigin(0.5)
+      );
+      node.setInteractive(new Phaser.Geom.Rectangle(-hotspot.width / 2, -18, hotspot.width, 48), Phaser.Geom.Rectangle.Contains);
+      node.on('pointerup', () => {
+        this.selectedThemeIndex = index;
+        this.currentTheme = LEVEL_THEMES[index];
+        this.drawWorld();
+        this.refreshSetup();
+      });
+      this.setupLayer.add(node);
+
+      if (selected) {
+        this.tweens.add({
+          targets: node,
+          scale: 1.08,
+          duration: 680,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+    });
   }
 
   private drawMapPath(map: Phaser.GameObjects.Container): void {
@@ -953,28 +998,6 @@ export class RunnerScene extends Phaser.Scene {
     bg.setInteractive({ useHandCursor: true }).on('pointerup', onClick);
     button.add(bg);
     return button;
-  }
-
-  private addGestureIcon(
-    parent: Phaser.GameObjects.Container,
-    x: number,
-    y: number,
-    direction: 'left' | 'right' | 'up' | 'down'
-  ): void {
-    const icon = this.add.container(x, y);
-    icon.add(this.add.circle(0, 0, 15, 0xffffff, 0.22).setStrokeStyle(2, 0xffffff, 0.72));
-
-    if (direction === 'left' || direction === 'right') {
-      const sign = direction === 'left' ? -1 : 1;
-      icon.add(this.add.rectangle(-4 * sign, 0, 15, 5, 0xffffff));
-      icon.add(this.add.triangle(8 * sign, 0, -5 * sign, -8, -5 * sign, 8, 7 * sign, 0, 0xffffff));
-    } else {
-      const sign = direction === 'up' ? -1 : 1;
-      icon.add(this.add.rectangle(0, -4 * sign, 5, 15, 0xffffff));
-      icon.add(this.add.triangle(0, 8 * sign, -8, -5 * sign, 8, -5 * sign, 0, 7 * sign, 0xffffff));
-    }
-
-    parent.add(icon);
   }
 
   private createButton(
@@ -1443,7 +1466,7 @@ export class RunnerScene extends Phaser.Scene {
 
   private spawnObstacle(lane: LaneIndex, kind: ObstacleKind): void {
     const themeObstacle = Phaser.Utils.Array.GetRandom(this.currentTheme.obstacles) as ThemeObstacle;
-    const obstacle = this.add.container(getLaneX(lane), 128) as Obstacle;
+    const obstacle = this.add.container(getLaneX(lane), SPAWN_ENTRY_Y) as Obstacle;
     obstacle.kind = kind;
     obstacle.setScale(0.62);
     this.drawObstacle(obstacle, themeObstacle, kind);
@@ -1636,7 +1659,7 @@ export class RunnerScene extends Phaser.Scene {
   private spawnCollectibleTrail(lane: LaneIndex): void {
     const count = Phaser.Math.Between(6, 9);
     for (let i = 0; i < count; i += 1) {
-      const y = 96 - i * 42;
+      const y = SPAWN_ENTRY_Y + i * COLLECTIBLE_TRAIL_SPACING;
       const laneOffset = Math.sin(i * 0.7) * 8;
       this.spawnCollectibleAt(getLaneX(lane) + laneOffset, y);
     }

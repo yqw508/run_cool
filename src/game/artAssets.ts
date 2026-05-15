@@ -10,13 +10,13 @@ const missing = (key: string): ArtAsset => ({ key });
 export const ART_ASSETS = {
   backgrounds: {
     lobby: { key: 'art-bg-lobby-garden', url: new URL('../assets/backgrounds/lobby-garden.png', import.meta.url).href },
-    mapSelect: missing('art-bg-map-select')
+    mapSelect: { key: 'art-bg-map-select', url: new URL('../assets/backgrounds/map-select.png', import.meta.url).href }
   },
   runnerBackgrounds: {
-    campus: missing('art-bg-runner-campus'),
-    mall: missing('art-bg-runner-mall'),
-    zoo: missing('art-bg-runner-zoo'),
-    amusement: missing('art-bg-runner-amusement')
+    campus: { key: 'art-bg-runner-campus', url: new URL('../assets/backgrounds/runner-campus.png', import.meta.url).href },
+    mall: { key: 'art-bg-runner-mall', url: new URL('../assets/backgrounds/runner-mall.png', import.meta.url).href },
+    zoo: { key: 'art-bg-runner-zoo', url: new URL('../assets/backgrounds/runner-zoo.png', import.meta.url).href },
+    amusement: { key: 'art-bg-runner-amusement', url: new URL('../assets/backgrounds/runner-amusement.png', import.meta.url).href }
   },
   mapThumbnails: {
     campus: missing('art-thumb-campus'),

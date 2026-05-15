@@ -4,7 +4,7 @@ export const GAME_HEIGHT = 720;
 export const LANES = [0, 1, 2] as const;
 export type LaneIndex = (typeof LANES)[number];
 
-export const PLAYER_Y = 570;
+export const PLAYER_Y = 595;
 export const LANE_WIDTH = GAME_WIDTH / 4;
 export const BASE_SPEED = 230;
 export const MAX_SPEED = 520;
