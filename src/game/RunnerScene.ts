@@ -810,7 +810,11 @@ export class RunnerScene extends Phaser.Scene {
     this.selectedCharacterIndex = normalized;
     this.selection = { presetId: CHARACTER_PRESETS[normalized].id };
     this.emitLobbySelection();
-    void this.ensureLobbyCharactersLoaded(normalized).then(() => this.refreshSetup());
+    void this.ensureLobbyCharactersLoaded(normalized).then(() => {
+      if (this.setupStep === 'character' && this.selectedCharacterIndex === normalized) {
+        this.refreshSetup();
+      }
+    });
     this.redrawPlayer();
   }
 
