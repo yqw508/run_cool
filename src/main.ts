@@ -8,6 +8,9 @@ new Phaser.Game({
   parent: 'game',
   backgroundColor: 'rgba(0, 0, 0, 0)',
   transparent: true,
+  render: {
+    antialias: true
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

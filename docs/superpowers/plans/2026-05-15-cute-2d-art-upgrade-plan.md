@@ -249,6 +249,8 @@ Use prompts from `docs/superpowers/specs/2026-05-15-cute-2d-art-upgrade-design.m
 - 地图选择页背景。
 - 花园跑酷背景。
 
+Reject and regenerate any map-select image that contains a phone mockup, system status bar, baked labels, buttons, cards, text, logos, or watermarks. Reject and regenerate any runner background that contains baked obstacles, collectibles, characters, UI, logos, or watermarks.
+
 Required output:
 
 ```text

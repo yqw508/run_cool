@@ -4,6 +4,8 @@ import { GAME_HEIGHT, GAME_WIDTH, JUMP_DURATION_MS, PLAYER_Y, SLIDE_DURATION_MS,
 import { applyDamage, createHealthState, isDefeated, type HealthState } from './health';
 import { bindSwipeInput, type GestureDirection } from './input';
 import { getThemeForRunDistance, LEVEL_THEMES, type LevelTheme, type ThemeObstacle } from './levels';
+import { ALL_FINAL_ART_ASSETS, ART_ASSETS } from './artAssets';
+import { ALL_OPEN_ASSETS, OPEN_ASSETS } from './openAssets';
 import { getLaneX, getRunSpeed, getScore, getSpawnDelay, nextLane } from './progression';
 
 type GameState = 'setup' | 'running' | 'paused' | 'ended';
@@ -37,10 +39,6 @@ const TEXT_STYLE = {
   fontFamily: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif',
   color: '#17263a'
 };
-const LAYERED_BABY_VISUAL_SCALE = 0.7;
-const ENABLE_3D_LOBBY_CHARACTERS = false;
-const ENABLE_3D_RUNNER = false;
-const ENABLE_3D_SCENES = false;
 
 declare global {
   interface Window {
@@ -96,6 +94,12 @@ export class RunnerScene extends Phaser.Scene {
       this.load.image(preset.assetKey, preset.assetUrl);
       this.load.image(preset.lobbyAssetKey, preset.lobbyAssetUrl);
     });
+    ALL_FINAL_ART_ASSETS.forEach((asset) => {
+      if (asset.url) {
+        this.load.image(asset.key, asset.url);
+      }
+    });
+    ALL_OPEN_ASSETS.forEach((asset) => this.load.image(asset.key, asset.url));
   }
 
   create(): void {
@@ -149,12 +153,20 @@ export class RunnerScene extends Phaser.Scene {
   private drawWorld(): void {
     this.worldLayer?.destroy(true);
     this.worldLayer = this.add.container(0, 0).setDepth(-10);
-    if (ENABLE_3D_SCENES) {
-      return;
-    }
     const theme = this.currentTheme;
 
-    this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, theme.skyColor));
+    const finalBackground = ART_ASSETS.runnerBackgrounds[theme.id];
+    const fallbackBackground = OPEN_ASSETS.backgrounds[theme.id];
+    const backgroundKey = this.textures.exists(finalBackground.key) ? finalBackground.key : fallbackBackground.key;
+    if (this.textures.exists(backgroundKey)) {
+      this.worldLayer.add(
+        this.add
+          .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, backgroundKey)
+          .setDisplaySize(GAME_WIDTH, GAME_HEIGHT)
+          .setAlpha(backgroundKey === finalBackground.key ? 1 : 0.78)
+      );
+    }
+    this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, theme.skyColor, 0.22));
     this.worldLayer.add(this.add.circle(68, 82, 34, 0xffe46b));
     this.drawThemeLandmarks(theme);
     this.worldLayer.add(this.add.rectangle(GAME_WIDTH / 2, 680, GAME_WIDTH, 116, theme.groundColor));
@@ -338,6 +350,11 @@ export class RunnerScene extends Phaser.Scene {
 
   private createCollectibleIcon(x: number, y: number, scale: number, config: CollectibleConfig): Phaser.GameObjects.Container {
     const icon = this.add.container(x, y).setScale(scale);
+    const asset = OPEN_ASSETS.collectibles[config.kind];
+    if (this.textures.exists(asset.key)) {
+      icon.add(this.add.image(0, 0, asset.key).setDisplaySize(42, 42));
+      return icon;
+    }
     if (config.kind === 'coin') {
       icon.add(this.add.circle(0, 0, 15, config.color).setStrokeStyle(3, config.accentColor));
       icon.add(this.add.circle(0, 0, 8, 0xffffff, 0.16));
@@ -397,15 +414,11 @@ export class RunnerScene extends Phaser.Scene {
           characterIndex: this.selectedCharacterIndex,
           lane: this.currentLane,
           pose: this.pose,
-          renderMode: this.isUsingLayeredBabyRunner() ? 'layered-2d' : 'three-3d',
+          renderMode: 'phaser-2d',
           state: this.state
         }
       })
     );
-  }
-
-  private isUsingLayeredBabyRunner(): boolean {
-    return ENABLE_3D_RUNNER && resolveSelection(this.selection).id === 'baby-brother';
   }
 
   private createSetupLayer(): void {
@@ -449,11 +462,16 @@ export class RunnerScene extends Phaser.Scene {
   }
 
   private drawGardenLobby(): void {
-    if (ENABLE_3D_SCENES) {
+    if (this.textures.exists(ART_ASSETS.backgrounds.lobby.key)) {
+      this.setupLayer.add(this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, ART_ASSETS.backgrounds.lobby.key).setDisplaySize(GAME_WIDTH, GAME_HEIGHT));
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xf7fff4, 0.08));
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 612, GAME_WIDTH, 250, 0x8fdc72, 0.06));
       return;
+    } else if (this.textures.exists(OPEN_ASSETS.backgrounds.garden.key)) {
+      this.setupLayer.add(this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, OPEN_ASSETS.backgrounds.garden.key).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setAlpha(0.9));
+    } else {
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xbfefff));
     }
-
-    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xbfefff));
     this.setupLayer.add(this.add.circle(62, 82, 32, 0xffe46b, 0.92));
     this.setupLayer.add(this.add.ellipse(326, 82, 76, 28, 0xffffff, 0.55));
     this.setupLayer.add(this.add.ellipse(284, 104, 108, 34, 0xffffff, 0.46));
@@ -537,14 +555,11 @@ export class RunnerScene extends Phaser.Scene {
       .setAlpha(selected ? 1 : 0.82)
       .setDepth(selected ? 14 : 4 + Math.round(homeSpot.y / 10));
 
-    if (ENABLE_3D_LOBBY_CHARACTERS) {
-      // 3D lobby actors are rendered by ThreeTechPreview; Phaser keeps click zones and selection UI.
-    } else {
-      this.drawLobbyScene(character, preset);
-    }
+    character.add(this.add.ellipse(0, -58, 112, 150, 0xffffff, selected ? 0.2 : 0.13).setDepth(-4));
+    this.drawLobbyScene(character, preset);
 
     if (selected) {
-      character.add(this.add.circle(0, -64, 66, 0xffd447, 0.08).setStrokeStyle(4, 0xffd447, 0.46).setDepth(-2));
+      character.add(this.add.circle(0, -64, 58, 0xffd447, 0.07).setStrokeStyle(3, 0xffd447, 0.38).setDepth(-2));
     }
     character.setInteractive(new Phaser.Geom.Rectangle(-58, -150, 116, 190), Phaser.Geom.Rectangle.Contains);
     character.on('pointerup', () => this.selectLobbyCharacter(index));
@@ -553,7 +568,7 @@ export class RunnerScene extends Phaser.Scene {
     if (selected) {
       this.tweens.add({
         targets: character,
-        scale: homeSpot.scale * 1.14,
+        scale: homeSpot.scale * 1.1,
         duration: 220,
         ease: 'Back.easeOut'
       });
@@ -719,11 +734,14 @@ export class RunnerScene extends Phaser.Scene {
   private addCharacterDetails(): void {
     const preset = CHARACTER_PRESETS[this.selectedCharacterIndex];
     const panel = this.add.container(GAME_WIDTH / 2, 598);
-    panel.add(this.add.rectangle(0, 0, 330, 76, 0xffffff, 0.94).setStrokeStyle(3, 0xffd447));
+    panel.add(this.add.ellipse(0, 44, 292, 22, 0x1f3b2f, 0.1));
+    panel.add(this.add.rectangle(0, 0, 330, 78, 0xffffff, 0.98).setStrokeStyle(3, 0xffd447, 0.9));
+    panel.add(this.add.rectangle(0, -36, 330, 8, 0xfff1a8, 0.88));
     panel.add(
       this.add
         .text(-142, -22, preset.label, {
           ...TEXT_STYLE,
+          color: '#17263a',
           fontSize: '21px',
           fontStyle: 'bold'
         })
@@ -733,7 +751,7 @@ export class RunnerScene extends Phaser.Scene {
       this.add
         .text(142, -22, preset.age, {
           ...TEXT_STYLE,
-          color: '#527084',
+          color: '#466175',
           fontSize: '14px'
         })
         .setOrigin(1, 0.5)
@@ -742,8 +760,9 @@ export class RunnerScene extends Phaser.Scene {
       this.add
         .text(-142, 13, preset.description, {
           ...TEXT_STYLE,
-          color: '#527084',
+          color: '#3f5e6c',
           fontSize: '14px',
+          fontStyle: 'bold',
           wordWrap: { width: 284 }
         })
         .setOrigin(0, 0.5)
@@ -760,10 +779,13 @@ export class RunnerScene extends Phaser.Scene {
 
   private createMapSelect(): void {
     this.emitScreen('map-select');
-    if (!ENABLE_3D_SCENES) {
+    if (this.textures.exists(ART_ASSETS.backgrounds.mapSelect.key)) {
+      this.setupLayer.add(this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, ART_ASSETS.backgrounds.mapSelect.key).setDisplaySize(GAME_WIDTH, GAME_HEIGHT));
+      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff, 0.16));
+    } else {
       this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8fd7ff));
-      this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
     }
+    this.setupLayer.add(this.add.rectangle(GAME_WIDTH / 2, 610, GAME_WIDTH, 220, 0x74c973));
     this.setupLayer.add(
       this.add
         .text(GAME_WIDTH / 2, 48, '选择地图', {
@@ -777,11 +799,9 @@ export class RunnerScene extends Phaser.Scene {
     );
 
     const map = this.add.container(GAME_WIDTH / 2, 342);
-    if (!ENABLE_3D_SCENES) {
-      map.add(this.add.ellipse(0, 18, 332, 440, 0xeaf7ff, 0.96).setStrokeStyle(4, 0xffffff));
-      map.add(this.add.ellipse(0, 28, 286, 386, 0xbde78a, 0.95));
-      this.drawMapPath(map);
-    }
+    map.add(this.add.ellipse(0, 18, 332, 440, 0xeaf7ff, 0.96).setStrokeStyle(4, 0xffffff));
+    map.add(this.add.ellipse(0, 28, 286, 386, 0xbde78a, 0.95));
+    this.drawMapPath(map);
     this.setupLayer.add(map);
 
     const nodes = [
@@ -860,6 +880,12 @@ export class RunnerScene extends Phaser.Scene {
     }
     node.add(this.add.rectangle(0, 8, 64, 58, 0xffffff).setStrokeStyle(3, color));
     node.add(this.add.rectangle(0, -28, 72, 18, color));
+    const finalThumbnail = ART_ASSETS.mapThumbnails[theme.id];
+    const fallbackThumbnail = OPEN_ASSETS.backgrounds[theme.id];
+    const thumbnailKey = this.textures.exists(finalThumbnail.key) ? finalThumbnail.key : fallbackThumbnail.key;
+    if (this.textures.exists(thumbnailKey)) {
+      node.add(this.add.image(0, 8, thumbnailKey).setDisplaySize(58, 44).setAlpha(0.82));
+    }
     node.add(
       this.add
         .text(0, 4, icon, {
@@ -1141,18 +1167,17 @@ export class RunnerScene extends Phaser.Scene {
 
     if (direction === 'down') {
       const poseTarget = this.playerVisual ?? this.player;
-      const visualScale = this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1;
       this.setPose('slide', SLIDE_DURATION_MS);
       this.tweens.add({
         targets: poseTarget,
-        scaleX: visualScale * 1.12,
-        scaleY: visualScale * 0.68,
+        scaleX: 1.12,
+        scaleY: 0.68,
         angle: -8,
         yoyo: true,
         duration: SLIDE_DURATION_MS / 2,
         ease: 'Sine.easeInOut',
         onComplete: () => {
-          poseTarget.setScale(visualScale);
+          poseTarget.setScale(1);
           poseTarget.setAngle(0);
         }
       });
@@ -1165,12 +1190,11 @@ export class RunnerScene extends Phaser.Scene {
     this.stopRunAnimation();
 
     if (pose === 'jump') {
-      const visualScale = this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1;
       this.tweens.add({
         targets: this.playerVisual,
         angle: 10,
-        scaleX: visualScale * 0.96,
-        scaleY: visualScale * 1.05,
+        scaleX: 0.96,
+        scaleY: 1.05,
         yoyo: true,
         duration: duration / 2,
         ease: 'Sine.easeOut'
@@ -1192,15 +1216,14 @@ export class RunnerScene extends Phaser.Scene {
       return;
     }
 
-    const visualScale = this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1;
-    this.playerVisual.setPosition(0, 0).setScale(visualScale).setAngle(0);
+    this.playerVisual.setPosition(0, 0).setScale(1).setAngle(0);
     this.runTweens = [
       this.tweens.add({
         targets: this.playerVisual,
-        y: this.isUsingLayeredBabyRunner() ? -5 : -8,
-        scaleX: visualScale * 1.03,
-        scaleY: visualScale * 0.98,
-        duration: this.isUsingLayeredBabyRunner() ? 180 : 150,
+        y: -8,
+        scaleX: 1.03,
+        scaleY: 0.98,
+        duration: 150,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
@@ -1215,7 +1238,7 @@ export class RunnerScene extends Phaser.Scene {
       })
     ];
 
-    if (this.layeredBabyRig && this.isUsingLayeredBabyRunner()) {
+    if (this.layeredBabyRig) {
       const rig = this.layeredBabyRig;
       this.runTweens.push(
         this.tweens.add({
@@ -1284,7 +1307,7 @@ export class RunnerScene extends Phaser.Scene {
   private stopRunAnimation(): void {
     this.runTweens.forEach((tween) => tween.stop());
     this.runTweens = [];
-    this.playerVisual?.setPosition(0, 0).setScale(this.isUsingLayeredBabyRunner() ? LAYERED_BABY_VISUAL_SCALE : 1).setAngle(0);
+    this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
     if (this.layeredBabyRig) {
       this.layeredBabyRig.leftArm.setPosition(-24, -48).setScale(1).setAngle(28);
       this.layeredBabyRig.rightArm.setPosition(24, -48).setScale(1).setAngle(-28);
@@ -1303,7 +1326,7 @@ export class RunnerScene extends Phaser.Scene {
     this.setupLayer.setVisible(true);
     this.resultLayer.setVisible(false);
     this.hudLayer.setVisible(false);
-    this.player.setVisible(!ENABLE_3D_SCENES);
+    this.player.setVisible(true);
     this.player.setAlpha(1);
     this.player.setPosition(getLaneX(1), PLAYER_Y);
     this.stopRunAnimation();
@@ -1326,10 +1349,10 @@ export class RunnerScene extends Phaser.Scene {
     this.nextSpawnAt = this.time.now + 600;
     this.pose = 'run';
     this.player
-      .setVisible(this.isUsingLayeredBabyRunner() || !ENABLE_3D_RUNNER)
+      .setVisible(true)
       .setPosition(getLaneX(this.currentLane), PLAYER_Y)
       .setScale(1)
-      .setAlpha(this.isUsingLayeredBabyRunner() || !ENABLE_3D_RUNNER ? 1 : 0);
+      .setAlpha(1);
     this.playerVisual?.setPosition(0, 0).setScale(1).setAngle(0);
     this.startRunAnimation();
     this.emitRunnerState();
@@ -1411,12 +1434,11 @@ export class RunnerScene extends Phaser.Scene {
 
     if (roll < 6) {
       this.spawnObstacle(lane, roll < 3 ? 'block' : 'bar');
-      this.spawnCollectible(((lane + Phaser.Math.Between(1, 2)) % 3) as LaneIndex);
+      this.spawnCollectibleTrail(((lane + Phaser.Math.Between(1, 2)) % 3) as LaneIndex);
       return;
     }
 
-    this.spawnCollectible(lane);
-    this.spawnCollectible(((lane + 1) % 3) as LaneIndex);
+    this.spawnCollectibleTrail(lane);
   }
 
   private spawnObstacle(lane: LaneIndex, kind: ObstacleKind): void {
@@ -1611,15 +1633,24 @@ export class RunnerScene extends Phaser.Scene {
     obstacle.add(cue);
   }
 
-  private spawnCollectible(lane: LaneIndex): void {
-    const collectible = this.add.container(getLaneX(lane), 110) as Collectible;
+  private spawnCollectibleTrail(lane: LaneIndex): void {
+    const count = Phaser.Math.Between(6, 9);
+    for (let i = 0; i < count; i += 1) {
+      const y = 96 - i * 42;
+      const laneOffset = Math.sin(i * 0.7) * 8;
+      this.spawnCollectibleAt(getLaneX(lane) + laneOffset, y);
+    }
+  }
+
+  private spawnCollectibleAt(x: number, y: number): void {
+    const collectible = this.add.container(x, y) as Collectible;
     collectible.collectibleId = this.collectibleConfig.id;
     collectible.add(this.createCollectibleIcon(0, 0, 1, this.collectibleConfig));
-    collectible.setScale(0.55);
+    collectible.setScale(0.48);
     this.physics.add.existing(collectible);
     collectible.body.setAllowGravity(false);
-    collectible.body.setSize(48, 48);
-    collectible.body.setOffset(-24, -24);
+    collectible.body.setSize(46, 46);
+    collectible.body.setOffset(-23, -23);
     this.collectibles.add(collectible);
   }
 
@@ -1701,7 +1732,7 @@ export class RunnerScene extends Phaser.Scene {
       yoyo: true,
       duration: 110,
       repeat: 5,
-      onComplete: () => this.player.setAlpha(this.isUsingLayeredBabyRunner() || !ENABLE_3D_RUNNER ? 1 : 0)
+      onComplete: () => this.player.setAlpha(1)
     });
   }
 
