@@ -9,7 +9,7 @@ const missing = (key: string): ArtAsset => ({ key });
 
 export const ART_ASSETS = {
   backgrounds: {
-    lobby: { key: 'art-bg-lobby-garden', url: new URL('../assets/backgrounds/lobby-garden.png', import.meta.url).href },
+    lobby: { key: 'art-bg-lobby-garden', url: new URL('../assets/backgrounds/lobby-character-stage.png', import.meta.url).href },
     mapSelect: { key: 'art-bg-map-select', url: new URL('../assets/backgrounds/map-select.png', import.meta.url).href }
   },
   runnerBackgrounds: {
