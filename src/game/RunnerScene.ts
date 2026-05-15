@@ -98,9 +98,45 @@ export class RunnerScene extends Phaser.Scene {
   preload(): void {
     this.load.image(ART_ASSETS.backgrounds.lobby.key, ART_ASSETS.backgrounds.lobby.url);
     this.load.image(OPEN_ASSETS.backgrounds.garden.key, OPEN_ASSETS.backgrounds.garden.url);
-    CHARACTER_PRESETS.forEach((preset) => {
-      this.load.image(preset.lobbyAssetKey, preset.lobbyAssetUrl);
-    });
+    const defaultIndex = CHARACTER_PRESETS.findIndex((p) => p.id === DEFAULT_SELECTION.presetId);
+    const total = CHARACTER_PRESETS.length;
+    const visibleIndices = [
+      Phaser.Math.Wrap(defaultIndex - 1, 0, total),
+      defaultIndex,
+      Phaser.Math.Wrap(defaultIndex + 1, 0, total)
+    ];
+    this.preloadLobbyCharacters(visibleIndices);
+  }
+
+  private preloadLobbyCharacters(indices: number[]): void {
+    indices
+      .filter((i) => i >= 0 && i < CHARACTER_PRESETS.length)
+      .forEach((i) => {
+        const preset = CHARACTER_PRESETS[i];
+        if (!this.textures.exists(preset.lobbyAssetKey)) {
+          this.load.image(preset.lobbyAssetKey, preset.lobbyAssetUrl);
+        }
+      });
+  }
+
+  private async ensureLobbyCharactersLoaded(centerIndex: number): Promise<void> {
+    const total = CHARACTER_PRESETS.length;
+    const indices = [
+      Phaser.Math.Wrap(centerIndex - 1, 0, total),
+      Phaser.Math.Wrap(centerIndex, 0, total),
+      Phaser.Math.Wrap(centerIndex + 1, 0, total)
+    ];
+    const missingPresets = indices
+      .filter((i) => !this.textures.exists(CHARACTER_PRESETS[i].lobbyAssetKey))
+      .map((i) => CHARACTER_PRESETS[i]);
+
+    if (missingPresets.length === 0) {
+      return;
+    }
+
+    await this.loadAssets(
+      missingPresets.map((p) => ({ key: p.lobbyAssetKey, url: p.lobbyAssetUrl }))
+    );
   }
 
   private loadAssets(assets: Array<ArtAsset | OpenAsset>): Promise<void> {
@@ -774,7 +810,7 @@ export class RunnerScene extends Phaser.Scene {
     this.selectedCharacterIndex = normalized;
     this.selection = { presetId: CHARACTER_PRESETS[normalized].id };
     this.emitLobbySelection();
-    this.refreshSetup();
+    void this.ensureLobbyCharactersLoaded(normalized).then(() => this.refreshSetup());
     this.redrawPlayer();
   }
 
