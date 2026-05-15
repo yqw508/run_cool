@@ -1,6 +1,6 @@
 :root {
   color: #152238;
-  background: #65c7f7;
+  background: #f7fff4;
   font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -28,7 +28,7 @@ body {
 
 #game {
   position: relative;
-  background: #65c7f7;
+  background: #f7fff4 url("./assets/backgrounds/lobby-character-stage.png") center / cover no-repeat;
 }
 
 canvas {
@@ -58,8 +58,9 @@ canvas {
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 24% 18%, #ffe46b 0 38px, transparent 40px),
-    linear-gradient(180deg, #74d4ff 0%, #78d9ff 60%, #65c970 60%, #65c970 100%);
+    linear-gradient(180deg, rgba(247, 255, 244, 0.18), rgba(247, 255, 244, 0.04)),
+    url("./assets/backgrounds/lobby-character-stage.png") center / cover no-repeat,
+    #f7fff4;
 }
 
 .boot-card {
